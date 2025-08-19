@@ -44,29 +44,29 @@ export default function Home() {
           <h2 className="text-4xl font-bold text-gray-900 mb-4">
             Extract Structured Data from{" "}
             <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              Any Text
+              Any File or URL
             </span>
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-            Use advanced AI models to extract precise, structured information from unstructured documents.
-            Support for Gemini and OpenAI with visual source grounding and interactive visualization.
+            Upload documents (PDF, Word, Excel, PowerPoint, etc.) or paste URLs for AI-powered extraction.
+            Support for Gemini and OpenAI with comprehensive file processing and web scraping via FireCrawl.
           </p>
           <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-500">
+            <div className="flex items-center">
+              <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+              All File Formats
+            </div>
+            <div className="flex items-center">
+              <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+              AI Web Scraping
+            </div>
             <div className="flex items-center">
               <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
               Source Grounding
             </div>
             <div className="flex items-center">
               <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-              Parallel Processing
-            </div>
-            <div className="flex items-center">
-              <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-              Interactive Visualization
-            </div>
-            <div className="flex items-center">
-              <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-              Multiple LLM Support
+              Visual Extraction
             </div>
           </div>
         </div>

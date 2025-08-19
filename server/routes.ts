@@ -8,8 +8,61 @@ import multer from "multer";
 import fs from "fs/promises";
 import fetch from "node-fetch";
 import mammoth from "mammoth";
+import { spawn } from "child_process";
+import FirecrawlApp from "@mendable/firecrawl-js";
+import path from "path";
+import os from "os";
 
 const langExtractService = new LangExtractService();
+
+// Helper function to extract text from files using Python script
+async function extractTextFromFile(filePath: string, mimeType?: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const pythonProcess = spawn('python3', ['scripts/enhanced_langextract_runner.py'], {
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    const config = {
+      inputText: "",
+      filePath: filePath,
+      promptDescription: "Extract text content",
+      examples: [],
+      modelId: "gemini-2.5-flash"
+    };
+
+    pythonProcess.stdin.write(JSON.stringify(config));
+    pythonProcess.stdin.end();
+
+    let output = '';
+    let errorOutput = '';
+
+    pythonProcess.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+
+    pythonProcess.stderr.on('data', (data) => {
+      errorOutput += data.toString();
+    });
+
+    pythonProcess.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`Text extraction failed: ${errorOutput}`));
+        return;
+      }
+
+      try {
+        const result = JSON.parse(output);
+        if (result.success && result.extractedText) {
+          resolve(result.extractedText);
+        } else {
+          reject(new Error(result.error || 'Failed to extract text'));
+        }
+      } catch (e) {
+        reject(new Error(`Failed to parse extraction result: ${output}`));
+      }
+    });
+  });
+}
 
 // Configure multer for file uploads
 const upload = multer({
@@ -143,44 +196,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // File upload endpoint
+  // Enhanced file upload endpoint with comprehensive format support
   app.post("/api/upload", upload.single('file'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      let text = "";
-      
-      // Handle different file types
-      if (req.file.mimetype === 'text/plain' || req.file.originalname.endsWith('.txt')) {
-        // Plain text file
-        text = req.file.buffer.toString('utf-8');
-      } else if (req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        // DOCX file
-        try {
-          const result = await mammoth.extractRawText({ buffer: req.file.buffer });
-          text = result.value;
-        } catch (error) {
-          console.error("DOCX parsing error:", error);
-          return res.status(400).json({ message: "Failed to parse DOCX file" });
+      // Save file temporarily for Python processing
+      const tempFilePath = path.join(os.tmpdir(), `upload_${Date.now()}_${req.file.originalname}`);
+      await fs.writeFile(tempFilePath, req.file.buffer);
+
+      try {
+        // Use Python script to extract text from various file formats
+        const extractedText = await extractTextFromFile(tempFilePath, req.file.mimetype);
+        
+        if (!extractedText || extractedText.trim().length === 0) {
+          return res.status(400).json({ 
+            message: "No text could be extracted from this file",
+            supportedFormats: [".txt", ".docx", ".pdf", ".xlsx", ".pptx", ".html", ".json", ".csv", ".md"]
+          });
         }
-      } else {
-        return res.status(400).json({ message: "Unsupported file type. Please upload .txt or .docx files only." });
+
+        res.json({
+          text: extractedText.trim(),
+          filename: req.file.originalname,
+          size: req.file.size,
+          fileType: req.file.mimetype,
+          extractedLength: extractedText.length
+        });
+
+      } catch (extractionError) {
+        console.error("Enhanced extraction failed, trying fallback:", extractionError);
+        
+        // Fallback to basic extraction for txt and docx
+        let text = "";
+        
+        if (req.file.mimetype === 'text/plain' || req.file.originalname.endsWith('.txt')) {
+          text = req.file.buffer.toString('utf-8');
+        } else if (req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+          try {
+            const result = await mammoth.extractRawText({ buffer: req.file.buffer });
+            text = result.value;
+          } catch (error) {
+            return res.status(400).json({ 
+              message: "Failed to parse file. Enhanced extraction unavailable.",
+              error: extractionError.message 
+            });
+          }
+        } else {
+          return res.status(400).json({ 
+            message: "Unsupported file type. Enhanced extraction failed.",
+            error: extractionError.message,
+            supportedFormats: [".txt", ".docx"] 
+          });
+        }
+
+        if (!text || text.trim().length === 0) {
+          return res.status(400).json({ message: "No text content found in the file" });
+        }
+
+        res.json({
+          text: text.trim(),
+          filename: req.file.originalname,
+          size: req.file.size,
+          fallbackExtraction: true
+        });
+      } finally {
+        // Clean up temp file
+        fs.unlink(tempFilePath).catch(() => {});
       }
 
-      if (!text || text.trim().length === 0) {
-        return res.status(400).json({ message: "No text content found in the file" });
-      }
-
-      res.json({ text, filename: req.file.originalname });
     } catch (error) {
       console.error("File upload error:", error);
       res.status(500).json({ message: "Failed to process uploaded file" });
     }
   });
 
-  // URL fetch endpoint
+  // Enhanced URL fetch endpoint with FireCrawl integration
   app.post("/api/fetch-url", async (req, res) => {
     try {
       const { url } = req.body;
@@ -196,46 +289,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid URL format" });
       }
 
-      // Fetch content from URL
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        },
-        timeout: 30000, // 30 second timeout
-      });
+      let text = "";
+      let method = "basic";
 
-      if (!response.ok) {
-        return res.status(400).json({ message: `Failed to fetch URL: ${response.statusText}` });
+      // Try FireCrawl first if API key is available
+      const firecrawlApiKey = process.env.FIRECRAWL_API_KEY;
+      if (firecrawlApiKey) {
+        try {
+          const app = new FirecrawlApp({ apiKey: firecrawlApiKey });
+          const scrapeResult = await app.scrapeUrl(url, {
+            formats: ['markdown', 'html'],
+            onlyMainContent: true,
+            waitFor: 2000,
+          });
+          
+          if (scrapeResult.success && scrapeResult.data?.markdown) {
+            text = scrapeResult.data.markdown;
+            method = "firecrawl";
+          } else if (scrapeResult.success && scrapeResult.data?.html) {
+            // Fallback to HTML extraction
+            const cheerio = await import('cheerio');
+            const $ = cheerio.load(scrapeResult.data.html);
+            text = $('body').text().trim();
+            method = "firecrawl-html";
+          }
+        } catch (firecrawlError) {
+          console.log("FireCrawl failed, falling back to basic fetch:", firecrawlError.message);
+        }
       }
 
-      const contentType = response.headers.get('content-type') || '';
-      let text = "";
+      // Fallback to basic fetch if FireCrawl didn't work
+      if (!text) {
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
+        });
 
-      if (contentType.includes('text/html') || contentType.includes('text/plain')) {
-        text = await response.text();
-        
-        // If HTML, try to extract just the text content
-        if (contentType.includes('text/html')) {
-          // Basic HTML text extraction (remove tags)
-          text = text
-            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
-            .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '') // Remove styles
-            .replace(/<[^>]+>/g, ' ') // Remove HTML tags
-            .replace(/\s+/g, ' ') // Normalize whitespace
-            .trim();
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-      } else {
-        return res.status(400).json({ message: "Unsupported content type from URL" });
+
+        const contentType = response.headers.get('content-type') || '';
+        
+        if (contentType.includes('text/html')) {
+          const html = await response.text();
+          const cheerio = await import('cheerio');
+          const $ = cheerio.load(html);
+          
+          // Remove script and style elements
+          $('script, style, nav, footer, header, aside').remove();
+          
+          // Extract main content
+          const mainContent = $('main, article, .content, .post, .entry').first();
+          text = mainContent.length > 0 ? mainContent.text() : $('body').text();
+          text = text.replace(/\s+/g, ' ').trim();
+          method = "basic-html";
+        } else if (contentType.includes('text/')) {
+          text = await response.text();
+          method = "basic-text";
+        } else {
+          throw new Error(`Unsupported content type: ${contentType}`);
+        }
       }
 
       if (!text || text.trim().length === 0) {
-        return res.status(400).json({ message: "No text content found at the URL" });
+        return res.status(400).json({ 
+          message: "No text content could be extracted from this URL",
+          method: method
+        });
       }
 
-      res.json({ text, url });
+      res.json({ 
+        text: text.trim(), 
+        url: url,
+        method: method,
+        length: text.length
+      });
+
     } catch (error) {
       console.error("URL fetch error:", error);
-      res.status(500).json({ message: "Failed to fetch content from URL" });
+      res.status(500).json({ 
+        message: "Failed to fetch content from URL",
+        error: error.message
+      });
     }
   });
 

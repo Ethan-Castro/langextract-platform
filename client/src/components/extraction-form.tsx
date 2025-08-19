@@ -101,12 +101,14 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    const allowedTypes = ['text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowedTypes.includes(file.type) && !file.name.endsWith('.txt')) {
+    // Enhanced file type validation for comprehensive support
+    const allowedExtensions = ['.txt', '.docx', '.pdf', '.xlsx', '.xls', '.pptx', '.ppt', '.html', '.htm', '.json', '.csv', '.md'];
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+    
+    if (!allowedExtensions.includes(fileExtension)) {
       toast({
-        title: "Invalid file type",
-        description: "Please upload a .txt or .docx file",
+        title: "Unsupported file type",
+        description: `Please upload one of: ${allowedExtensions.join(', ')}`,
         variant: "destructive",
       });
       return;
@@ -143,7 +145,7 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
       
       toast({
         title: "File uploaded successfully",
-        description: `Extracted ${result.text.length} characters from ${file.name}`,
+        description: `Extracted ${result.extractedLength?.toLocaleString() || result.text.length.toLocaleString()} characters from ${file.name}${result.fallbackExtraction ? ' (basic extraction)' : ''}`,
       });
     } catch (error) {
       toast({
@@ -183,9 +185,13 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
       const result = await response.json();
       form.setValue('inputText', result.text);
       
+      const methodDescription = result.method === 'firecrawl' ? 'via FireCrawl AI' : 
+                               result.method === 'firecrawl-html' ? 'via FireCrawl HTML' : 
+                               'via basic scraping';
+      
       toast({
         title: "Content fetched successfully",
-        description: `Extracted ${result.text.length} characters from URL`,
+        description: `Extracted ${result.length?.toLocaleString() || result.text.length.toLocaleString()} characters ${methodDescription}`,
       });
     } catch (error) {
       toast({
@@ -268,7 +274,7 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".txt,.docx"
+                      accept=".txt,.docx,.pdf,.xlsx,.xls,.pptx,.ppt,.html,.htm,.json,.csv,.md"
                       onChange={handleFileUpload}
                       className="hidden"
                     />
@@ -318,7 +324,7 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
                         <>
                           <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                           <p className="text-gray-600 mb-2">Drag and drop files here, or click to select</p>
-                          <p className="text-sm text-gray-400">Supports .txt, .docx files up to 10MB</p>
+                          <p className="text-sm text-gray-400">Supports TXT, DOCX, PDF, Excel, PowerPoint, HTML, JSON, CSV, Markdown up to 10MB</p>
                           <Button type="button" className="mt-4" variant="outline">
                             Choose Files
                           </Button>
@@ -334,7 +340,7 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
                       <Input
                         value={urlInput}
                         onChange={(e) => setUrlInput(e.target.value)}
-                        placeholder="https://www.example.com/document.txt"
+                        placeholder="https://example.com/article or document URL (AI-powered scraping)"
                         type="url"
                         className="flex-1"
                         onKeyDown={(e) => {
