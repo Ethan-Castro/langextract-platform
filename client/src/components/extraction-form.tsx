@@ -102,11 +102,11 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
     if (!file) return;
 
     // Validate file type
-    const allowedTypes = ['text/plain', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    const allowedTypes = ['text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     if (!allowedTypes.includes(file.type) && !file.name.endsWith('.txt')) {
       toast({
         title: "Invalid file type",
-        description: "Please upload a .txt, .pdf, or .docx file",
+        description: "Please upload a .txt or .docx file",
         variant: "destructive",
       });
       return;
@@ -268,7 +268,7 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".txt,.pdf,.docx"
+                      accept=".txt,.docx"
                       onChange={handleFileUpload}
                       className="hidden"
                     />
@@ -318,7 +318,7 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
                         <>
                           <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                           <p className="text-gray-600 mb-2">Drag and drop files here, or click to select</p>
-                          <p className="text-sm text-gray-400">Supports .txt, .pdf, .docx files up to 10MB</p>
+                          <p className="text-sm text-gray-400">Supports .txt, .docx files up to 10MB</p>
                           <Button type="button" className="mt-4" variant="outline">
                             Choose Files
                           </Button>

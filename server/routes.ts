@@ -156,17 +156,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.file.mimetype === 'text/plain' || req.file.originalname.endsWith('.txt')) {
         // Plain text file
         text = req.file.buffer.toString('utf-8');
-      } else if (req.file.mimetype === 'application/pdf') {
-        // PDF file
-        try {
-          // Dynamic import to avoid initialization issues
-          const pdfParse = (await import('pdf-parse')).default;
-          const pdfData = await pdfParse(req.file.buffer);
-          text = pdfData.text;
-        } catch (error) {
-          console.error("PDF parsing error:", error);
-          return res.status(400).json({ message: "Failed to parse PDF file. Note: PDF parsing might not be available in all environments." });
-        }
       } else if (req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
         // DOCX file
         try {
@@ -177,7 +166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Failed to parse DOCX file" });
         }
       } else {
-        return res.status(400).json({ message: "Unsupported file type" });
+        return res.status(400).json({ message: "Unsupported file type. Please upload .txt or .docx files only." });
       }
 
       if (!text || text.trim().length === 0) {
@@ -234,17 +223,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .replace(/<[^>]+>/g, ' ') // Remove HTML tags
             .replace(/\s+/g, ' ') // Normalize whitespace
             .trim();
-        }
-      } else if (contentType.includes('application/pdf')) {
-        try {
-          // Dynamic import to avoid initialization issues
-          const pdfParse = (await import('pdf-parse')).default;
-          const buffer = Buffer.from(await response.arrayBuffer());
-          const pdfData = await pdfParse(buffer);
-          text = pdfData.text;
-        } catch (error) {
-          console.error("PDF parsing error:", error);
-          return res.status(400).json({ message: "Failed to parse PDF from URL. Note: PDF parsing might not be available in all environments." });
         }
       } else {
         return res.status(400).json({ message: "Unsupported content type from URL" });
