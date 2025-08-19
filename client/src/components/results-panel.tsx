@@ -1,0 +1,303 @@
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { type ExtractionJob, type ExtractionResult } from "@shared/schema";
+import { BarChart3, Download, Table, Eye, EyeOff, ExternalLink, Search } from "lucide-react";
+
+interface ResultsPanelProps {
+  job: ExtractionJob;
+}
+
+export function ResultsPanel({ job }: ResultsPanelProps) {
+  const [selectedEntityType, setSelectedEntityType] = useState<string>("all");
+  const [highlightsVisible, setHighlightsVisible] = useState(true);
+
+  if (job.status === "pending" || job.status === "processing") {
+    return null;
+  }
+
+  if (job.status === "failed") {
+    return (
+      <Card className="border-red-200">
+        <CardContent className="p-6">
+          <div className="text-center">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Search className="w-6 h-6 text-red-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Extraction Failed</h3>
+            <p className="text-red-600 mb-4">
+              {job.results?.error || "An unknown error occurred during extraction."}
+            </p>
+            <p className="text-sm text-gray-600">
+              Please check your input text, API key, and model configuration.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const results = job.results as any;
+  const extractions: ExtractionResult[] = results?.extractions || [];
+  const metadata = results?.metadata || {};
+
+  // Group extractions by type
+  const entityTypes = Array.from(new Set(extractions.map(e => e.extraction_class)));
+  const filteredExtractions = selectedEntityType === "all" 
+    ? extractions 
+    : extractions.filter(e => e.extraction_class === selectedEntityType);
+
+  const handleExport = async (format: "json" | "csv") => {
+    try {
+      const response = await fetch(`/api/extractions/${job.id}/export?format=${format}`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `extraction_${job.id}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error(`Failed to export ${format}:`, error);
+    }
+  };
+
+  const handleVisualize = () => {
+    window.open(`/api/extractions/${job.id}/visualization`, '_blank');
+  };
+
+  const highlightText = (text: string, extractions: ExtractionResult[]) => {
+    if (!highlightsVisible) return text;
+
+    let highlightedText = text;
+    const sortedExtractions = [...extractions].sort((a, b) => 
+      (b.position_start || text.indexOf(b.extraction_text)) - (a.position_start || text.indexOf(a.extraction_text))
+    );
+
+    sortedExtractions.forEach((extraction, index) => {
+      const startPos = extraction.position_start ?? text.indexOf(extraction.extraction_text);
+      if (startPos !== -1) {
+        const beforeText = highlightedText.slice(0, startPos);
+        const afterText = highlightedText.slice(startPos + extraction.extraction_text.length);
+        highlightedText = beforeText + 
+          `<span class="bg-gradient-to-r from-yellow-200 to-yellow-300 px-1 py-0.5 rounded border-l-2 border-yellow-500 hover:scale-105 transition-transform cursor-pointer" data-entity="${index}">${extraction.extraction_text}</span>` + 
+          afterText;
+      }
+    });
+
+    return highlightedText;
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Results Summary Card */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <BarChart3 className="text-green-600 mr-2 w-5 h-5" />
+              Extraction Results
+            </h3>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport("json")}
+              >
+                <Download className="w-4 h-4 mr-1" />
+                JSON
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport("csv")}
+              >
+                <Table className="w-4 h-4 mr-1" />
+                CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleVisualize}
+              >
+                <Eye className="w-4 h-4 mr-1" />
+                Visualize
+              </Button>
+            </div>
+          </div>
+
+          {/* Statistics Grid */}
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">
+                {metadata.totalExtractions || extractions.length}
+              </div>
+              <div className="text-sm text-blue-800">Total Extractions</div>
+            </div>
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">
+                {metadata.uniqueClasses || entityTypes.length}
+              </div>
+              <div className="text-sm text-green-800">Entity Types</div>
+            </div>
+            <div className="text-center p-4 bg-purple-50 rounded-lg">
+              <div className="text-2xl font-bold text-purple-600">
+                {results?.processingTime ? `${(results.processingTime / 1000).toFixed(1)}s` : 'N/A'}
+              </div>
+              <div className="text-sm text-purple-800">Processing Time</div>
+            </div>
+            <div className="text-center p-4 bg-amber-50 rounded-lg">
+              <div className="text-2xl font-bold text-amber-600">
+                {metadata.averageConfidence ? `${(metadata.averageConfidence * 100).toFixed(0)}%` : 'N/A'}
+              </div>
+              <div className="text-sm text-amber-800">Avg. Confidence</div>
+            </div>
+          </div>
+
+          {/* Extracted Entities */}
+          <div className="space-y-4">
+            <h4 className="font-semibold text-gray-900">Extracted Entities</h4>
+            
+            {/* Entity Type Filter */}
+            <div className="flex flex-wrap gap-2">
+              <Badge
+                variant={selectedEntityType === "all" ? "default" : "secondary"}
+                className="cursor-pointer"
+                onClick={() => setSelectedEntityType("all")}
+              >
+                All ({extractions.length})
+              </Badge>
+              {entityTypes.map(type => {
+                const count = extractions.filter(e => e.extraction_class === type).length;
+                return (
+                  <Badge
+                    key={type}
+                    variant={selectedEntityType === type ? "default" : "secondary"}
+                    className="cursor-pointer"
+                    onClick={() => setSelectedEntityType(type)}
+                  >
+                    {type} ({count})
+                  </Badge>
+                );
+              })}
+            </div>
+
+            {/* Entities List */}
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {filteredExtractions.map((extraction, index) => (
+                <div
+                  key={index}
+                  className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Badge variant="outline">{extraction.extraction_class}</Badge>
+                        {extraction.position_start !== undefined && (
+                          <span className="text-sm text-gray-500">
+                            Position: {extraction.position_start}-{extraction.position_end}
+                          </span>
+                        )}
+                        {extraction.confidence && (
+                          <span className="text-sm text-gray-500">
+                            Confidence: {(extraction.confidence * 100).toFixed(0)}%
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-medium text-gray-900 mb-1">
+                        {extraction.extraction_text}
+                      </div>
+                      {Object.keys(extraction.attributes).length > 0 && (
+                        <div className="text-xs text-gray-500">
+                          <strong>Attributes:</strong>{" "}
+                          {Object.entries(extraction.attributes)
+                            .map(([key, value]) => `${key}: "${value}"`)
+                            .join(", ")}
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="p-2"
+                    >
+                      <Search className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Source Text with Highlighting */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <Search className="text-yellow-600 mr-2 w-5 h-5" />
+              Source Text with Highlights
+            </h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setHighlightsVisible(!highlightsVisible)}
+            >
+              {highlightsVisible ? (
+                <>
+                  <EyeOff className="w-4 h-4 mr-1" />
+                  Hide Highlights
+                </>
+              ) : (
+                <>
+                  <Eye className="w-4 h-4 mr-1" />
+                  Show Highlights
+                </>
+              )}
+            </Button>
+          </div>
+          
+          <div
+            className="bg-gray-50 rounded-lg p-4 font-mono text-sm leading-relaxed"
+            dangerouslySetInnerHTML={{
+              __html: highlightText(job.inputText, extractions)
+            }}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Interactive Visualization Preview */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <BarChart3 className="text-accent mr-2 w-5 h-5" />
+              Interactive Visualization
+            </h3>
+            <Button onClick={handleVisualize} className="bg-accent text-white hover:bg-accent/90">
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Open Full Visualization
+            </Button>
+          </div>
+          
+          <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-8 text-center border-2 border-dashed border-blue-200">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <BarChart3 className="w-8 h-8 text-blue-600" />
+            </div>
+            <p className="text-gray-600 mb-4">Interactive HTML visualization available</p>
+            <p className="text-sm text-gray-500">
+              Click "Open Full Visualization" to see the detailed interactive view with entity highlighting,
+              relationship graphs, and detailed analytics.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
