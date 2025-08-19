@@ -237,7 +237,8 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
                             type="number"
                             min={1}
                             max={5}
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || null)}
                           />
                         </FormControl>
                         <FormMessage />
@@ -256,7 +257,8 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
                             type="number"
                             min={1}
                             max={20}
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || null)}
                           />
                         </FormControl>
                         <FormMessage />

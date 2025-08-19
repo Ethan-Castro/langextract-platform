@@ -47,6 +47,9 @@ export class MemStorage implements IStorage {
       createdAt: new Date(),
       completedAt: null,
       results: null,
+      userId: insertJob.userId || null,
+      extractionPasses: insertJob.extractionPasses || null,
+      maxWorkers: insertJob.maxWorkers || null,
     };
     this.extractionJobs.set(id, job);
     return job;

@@ -72,9 +72,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Job not completed or has no results" });
       }
 
+      const results = job.results as any;
       const html = await langExtractService.generateVisualization(
         job.id,
-        job.results.extractions || [],
+        results?.extractions || [],
         job.inputText
       );
 
@@ -112,9 +113,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           completedAt: job.completedAt
         });
       } else if (format === 'csv') {
-        const extractions = job.results.extractions || [];
+        const results = job.results as any;
+        const extractions = results?.extractions || [];
         const csvHeader = 'extraction_class,extraction_text,attributes,position_start,position_end,confidence\n';
-        const csvRows = extractions.map(ext => 
+        const csvRows = extractions.map((ext: any) => 
           `"${ext.extraction_class}","${ext.extraction_text}","${JSON.stringify(ext.attributes).replace(/"/g, '""')}",${ext.position_start || ''},${ext.position_end || ''},${ext.confidence || ''}`
         ).join('\n');
         
@@ -145,7 +147,7 @@ async function processExtractionJob(jobId: string) {
     const result = await langExtractService.extract({
       text: job.inputText,
       promptDescription: job.promptDescription,
-      examples: job.examples,
+      examples: job.examples as any,
       modelId: job.modelId,
       extractionPasses: job.extractionPasses || 1,
       maxWorkers: job.maxWorkers || 5,

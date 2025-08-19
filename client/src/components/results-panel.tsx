@@ -27,7 +27,7 @@ export function ResultsPanel({ job }: ResultsPanelProps) {
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Extraction Failed</h3>
             <p className="text-red-600 mb-4">
-              {job.results?.error || "An unknown error occurred during extraction."}
+              {(job.results as any)?.error || "An unknown error occurred during extraction."}
             </p>
             <p className="text-sm text-gray-600">
               Please check your input text, API key, and model configuration.
