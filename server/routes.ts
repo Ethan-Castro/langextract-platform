@@ -4,8 +4,20 @@ import { storage } from "./storage";
 import { insertExtractionJobSchema, type ProcessingStatus } from "@shared/schema";
 import { LangExtractService } from "./services/langextract";
 import { z } from "zod";
+import multer from "multer";
+import fs from "fs/promises";
+import fetch from "node-fetch";
+import mammoth from "mammoth";
 
 const langExtractService = new LangExtractService();
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize LangExtract service
@@ -128,6 +140,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       res.status(500).json({ message: "Failed to export results" });
+    }
+  });
+
+  // File upload endpoint
+  app.post("/api/upload", upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      let text = "";
+      
+      // Handle different file types
+      if (req.file.mimetype === 'text/plain' || req.file.originalname.endsWith('.txt')) {
+        // Plain text file
+        text = req.file.buffer.toString('utf-8');
+      } else if (req.file.mimetype === 'application/pdf') {
+        // PDF file
+        try {
+          // Dynamic import to avoid initialization issues
+          const pdfParse = (await import('pdf-parse')).default;
+          const pdfData = await pdfParse(req.file.buffer);
+          text = pdfData.text;
+        } catch (error) {
+          console.error("PDF parsing error:", error);
+          return res.status(400).json({ message: "Failed to parse PDF file. Note: PDF parsing might not be available in all environments." });
+        }
+      } else if (req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        // DOCX file
+        try {
+          const result = await mammoth.extractRawText({ buffer: req.file.buffer });
+          text = result.value;
+        } catch (error) {
+          console.error("DOCX parsing error:", error);
+          return res.status(400).json({ message: "Failed to parse DOCX file" });
+        }
+      } else {
+        return res.status(400).json({ message: "Unsupported file type" });
+      }
+
+      if (!text || text.trim().length === 0) {
+        return res.status(400).json({ message: "No text content found in the file" });
+      }
+
+      res.json({ text, filename: req.file.originalname });
+    } catch (error) {
+      console.error("File upload error:", error);
+      res.status(500).json({ message: "Failed to process uploaded file" });
+    }
+  });
+
+  // URL fetch endpoint
+  app.post("/api/fetch-url", async (req, res) => {
+    try {
+      const { url } = req.body;
+      
+      if (!url) {
+        return res.status(400).json({ message: "URL is required" });
+      }
+
+      // Validate URL
+      try {
+        new URL(url);
+      } catch {
+        return res.status(400).json({ message: "Invalid URL format" });
+      }
+
+      // Fetch content from URL
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        },
+        timeout: 30000, // 30 second timeout
+      });
+
+      if (!response.ok) {
+        return res.status(400).json({ message: `Failed to fetch URL: ${response.statusText}` });
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      let text = "";
+
+      if (contentType.includes('text/html') || contentType.includes('text/plain')) {
+        text = await response.text();
+        
+        // If HTML, try to extract just the text content
+        if (contentType.includes('text/html')) {
+          // Basic HTML text extraction (remove tags)
+          text = text
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
+            .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '') // Remove styles
+            .replace(/<[^>]+>/g, ' ') // Remove HTML tags
+            .replace(/\s+/g, ' ') // Normalize whitespace
+            .trim();
+        }
+      } else if (contentType.includes('application/pdf')) {
+        try {
+          // Dynamic import to avoid initialization issues
+          const pdfParse = (await import('pdf-parse')).default;
+          const buffer = Buffer.from(await response.arrayBuffer());
+          const pdfData = await pdfParse(buffer);
+          text = pdfData.text;
+        } catch (error) {
+          console.error("PDF parsing error:", error);
+          return res.status(400).json({ message: "Failed to parse PDF from URL. Note: PDF parsing might not be available in all environments." });
+        }
+      } else {
+        return res.status(400).json({ message: "Unsupported content type from URL" });
+      }
+
+      if (!text || text.trim().length === 0) {
+        return res.status(400).json({ message: "No text content found at the URL" });
+      }
+
+      res.json({ text, url });
+    } catch (error) {
+      console.error("URL fetch error:", error);
+      res.status(500).json({ message: "Failed to fetch content from URL" });
     }
   });
 

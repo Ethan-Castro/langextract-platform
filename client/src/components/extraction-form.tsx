@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { FileText, Upload, Link, Bot, ListTodo, Play, RotateCcw, Plus, Key } from "lucide-react";
+import { FileText, Upload, Link, Bot, ListTodo, Play, RotateCcw, Plus, Key, X, Loader2 } from "lucide-react";
 
 const formSchema = insertExtractionJobSchema.extend({
   apiKey: z.string().optional(),
@@ -28,6 +28,11 @@ interface ExtractionFormProps {
 
 export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
   const [inputType, setInputType] = useState<"text" | "file" | "url">("text");
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [isFetchingUrl, setIsFetchingUrl] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -90,6 +95,109 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
 
   const resetForm = () => {
     form.reset();
+    setUploadedFile(null);
+    setUrlInput("");
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['text/plain', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type) && !file.name.endsWith('.txt')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a .txt, .pdf, or .docx file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (10MB limit)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload a file smaller than 10MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessingFile(true);
+    setUploadedFile(file);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to process file');
+      }
+
+      const result = await response.json();
+      form.setValue('inputText', result.text);
+      
+      toast({
+        title: "File uploaded successfully",
+        description: `Extracted ${result.text.length} characters from ${file.name}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Upload failed",
+        description: "Failed to process the uploaded file",
+        variant: "destructive",
+      });
+      setUploadedFile(null);
+    } finally {
+      setIsProcessingFile(false);
+    }
+  };
+
+  const handleUrlFetch = async () => {
+    if (!urlInput) {
+      toast({
+        title: "URL required",
+        description: "Please enter a URL to fetch content from",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsFetchingUrl(true);
+
+    try {
+      const response = await fetch('/api/fetch-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: urlInput }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch URL content');
+      }
+
+      const result = await response.json();
+      form.setValue('inputText', result.text);
+      
+      toast({
+        title: "Content fetched successfully",
+        description: `Extracted ${result.text.length} characters from URL`,
+      });
+    } catch (error) {
+      toast({
+        title: "Fetch failed",
+        description: "Failed to fetch content from the URL",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFetchingUrl(false);
+    }
   };
 
   const addExample = () => {
@@ -158,33 +266,102 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
                 </TabsContent>
 
                 <TabsContent value="file">
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-colors">
-                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 mb-2">Drag and drop files here, or click to select</p>
-                    <p className="text-sm text-gray-400">Supports .txt, .pdf, .docx files up to 10MB</p>
-                    <Button type="button" className="mt-4" variant="outline">
-                      Choose Files
-                    </Button>
+                  <div className="space-y-4">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".txt,.pdf,.docx"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <div 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer"
+                    >
+                      {isProcessingFile ? (
+                        <div className="flex flex-col items-center">
+                          <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+                          <p className="text-gray-600">Processing file...</p>
+                        </div>
+                      ) : uploadedFile ? (
+                        <div className="flex flex-col items-center">
+                          <FileText className="w-12 h-12 text-primary mb-4" />
+                          <p className="text-gray-900 font-medium mb-2">{uploadedFile.name}</p>
+                          <p className="text-sm text-gray-500 mb-4">
+                            {(uploadedFile.size / 1024).toFixed(1)} KB
+                          </p>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                fileInputRef.current?.click();
+                              }}
+                            >
+                              Replace File
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setUploadedFile(null);
+                                form.setValue('inputText', '');
+                              }}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                          <p className="text-gray-600 mb-2">Drag and drop files here, or click to select</p>
+                          <p className="text-sm text-gray-400">Supports .txt, .pdf, .docx files up to 10MB</p>
+                          <Button type="button" className="mt-4" variant="outline">
+                            Choose Files
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="url">
-                  <FormField
-                    control={form.control}
-                    name="inputText"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            placeholder="https://www.example.com/document.txt"
-                            type="url"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <Input
+                        value={urlInput}
+                        onChange={(e) => setUrlInput(e.target.value)}
+                        placeholder="https://www.example.com/document.txt"
+                        type="url"
+                        className="flex-1"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleUrlFetch();
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleUrlFetch}
+                        disabled={isFetchingUrl || !urlInput}
+                      >
+                        {isFetchingUrl ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          'Fetch'
+                        )}
+                      </Button>
+                    </div>
+                    {isFetchingUrl && (
+                      <p className="text-sm text-gray-500 text-center">Fetching content from URL...</p>
                     )}
-                  />
+                  </div>
                 </TabsContent>
               </Tabs>
             </CardContent>
