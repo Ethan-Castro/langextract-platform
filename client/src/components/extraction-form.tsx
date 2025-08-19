@@ -14,11 +14,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { FileText, Upload, Link, Bot, ListTodo, Play, RotateCcw, Plus, Key, X, Loader2 } from "lucide-react";
+import { FileText, Upload, Link, Bot, ListTodo, Play, RotateCcw, Plus, X, Loader2, Download } from "lucide-react";
 
-const formSchema = insertExtractionJobSchema.extend({
-  apiKey: z.string().optional(),
-});
+const formSchema = insertExtractionJobSchema;
 
 type FormData = z.infer<typeof formSchema>;
 
@@ -27,7 +25,7 @@ interface ExtractionFormProps {
 }
 
 export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
-  const [inputType, setInputType] = useState<"text" | "file" | "url">("text");
+  const [inputType, setInputType] = useState<"text" | "file" | "url">("file");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
@@ -444,35 +442,7 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
                   />
                 </div>
 
-                {/* API Key Input */}
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <div className="flex items-start">
-                    <Key className="text-amber-600 mr-2 w-4 h-4 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-amber-800">API Key Required</p>
-                      <p className="text-xs text-amber-700 mt-1">
-                        Set your LANGEXTRACT_API_KEY environment variable or provide it below.
-                      </p>
-                      <FormField
-                        control={form.control}
-                        name="apiKey"
-                        render={({ field }) => (
-                          <FormItem className="mt-2">
-                            <FormControl>
-                              <Input
-                                {...field}
-                                type="password"
-                                placeholder="Optional: Enter API key directly"
-                                className="text-sm"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-                </div>
+
               </div>
             </CardContent>
           </Card>
