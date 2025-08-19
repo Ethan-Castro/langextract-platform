@@ -29,18 +29,24 @@ def run_extraction(config: Dict[str, Any]) -> Dict[str, Any]:
             ))
 
         # Get API key from environment or config
-        api_key = config.get("api_key") or os.getenv("LANGEXTRACT_API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY")
+        api_key = config.get("api_key") or os.getenv("GOOGLE_API_KEY") or os.getenv("LANGEXTRACT_API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY")
         
-        # Run extraction
-        result = lx.extract(
-            text_or_documents=config["text"],
-            prompt_description=config["prompt_description"],
-            examples=examples,
-            model_id=config["model_id"],
-            extraction_passes=config.get("extraction_passes", 1),
-            max_workers=config.get("max_workers", 5),
-            api_key=api_key
-        )
+        # Suppress progress output
+        import io
+        import contextlib
+        
+        # Capture stdout to suppress progress messages
+        with contextlib.redirect_stdout(io.StringIO()):
+            # Run extraction
+            result = lx.extract(
+                text_or_documents=config["text"],
+                prompt_description=config["prompt_description"],
+                examples=examples,
+                model_id=config["model_id"],
+                extraction_passes=config.get("extraction_passes", 1),
+                max_workers=config.get("max_workers", 5),
+                api_key=api_key
+            )
 
         # Process results
         extractions = []

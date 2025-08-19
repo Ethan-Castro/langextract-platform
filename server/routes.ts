@@ -146,11 +146,11 @@ async function processExtractionJob(jobId: string) {
     // Run extraction
     const result = await langExtractService.extract({
       text: job.inputText,
-      promptDescription: job.promptDescription,
+      prompt_description: job.promptDescription,  // Use snake_case for Python script
       examples: job.examples as any,
-      modelId: job.modelId,
-      extractionPasses: job.extractionPasses || 1,
-      maxWorkers: job.maxWorkers || 5,
+      model_id: job.modelId,  // Use snake_case for Python script
+      extraction_passes: job.extractionPasses || 1,  // Use snake_case for Python script
+      max_workers: job.maxWorkers || 5,  // Use snake_case for Python script
     });
 
     // Update job with results
