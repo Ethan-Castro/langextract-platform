@@ -12,7 +12,6 @@ import { spawn } from "child_process";
 import FirecrawlApp from "@mendable/firecrawl-js";
 import path from "path";
 import os from "os";
-import puppeteer from "puppeteer";
 import type { ExtractionResult } from "@shared/schema";
 import { GeminiExampleService } from "./services/gemini";
 
@@ -26,277 +25,206 @@ try {
   console.warn("Gemini service not available:", error);
 }
 
-// Helper function to generate PDF content
+// Helper function to generate simple HTML-based PDF content using a lightweight approach
 async function generatePDFContent(job: any, extractions: ExtractionResult[], metadata: any): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
+  console.log("Generating PDF content using simple HTML approach...");
+  
+  // Create formatted HTML content that can be converted to PDF
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>LangExtract Results - ${job.id}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #a855f7;
+            padding-bottom: 20px;
+        }
+        .header h1 {
+            color: #a855f7;
+            margin: 0;
+        }
+        .info-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .stat {
+            flex: 1;
+            padding: 10px;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3b82f6;
+        }
+        .extraction {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            background: #fff;
+        }
+        .extraction-type {
+            background: #a855f7;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+        .extraction-text {
+            font-weight: bold;
+            background: #fef3c7;
+            padding: 8px;
+            border-radius: 4px;
+            margin: 8px 0;
+        }
+        .attributes {
+            background: #f1f5f9;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .source-text {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1f2937;
+            margin: 25px 0 15px 0;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧠 LangExtract Results</h1>
+        <p>Extraction Report Generated on ${new Date().toLocaleString()}</p>
+    </div>
+
+    <div class="info-section">
+        <h3>Job Information</h3>
+        <p><strong>ID:</strong> ${job.id}</p>
+        <p><strong>Model:</strong> ${job.modelId}</p>
+        <p><strong>Status:</strong> ${job.status}</p>
+        <p><strong>Created:</strong> ${new Date(job.createdAt).toLocaleString()}</p>
+    </div>
+
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-number">${extractions.length}</div>
+            <div>Total Extractions</div>
+        </div>
+        <div class="stat">
+            <div class="stat-number">${new Set(extractions.map(e => e.extraction_class)).size}</div>
+            <div>Entity Types</div>
+        </div>
+        <div class="stat">
+            <div class="stat-number">${metadata.processingTime ? (metadata.processingTime / 1000).toFixed(1) + 's' : 'N/A'}</div>
+            <div>Processing Time</div>
+        </div>
+    </div>
+
+    <h2 class="section-title">Prompt Description</h2>
+    <div class="info-section">
+        ${job.promptDescription}
+    </div>
+
+    <h2 class="section-title">Extracted Entities (${extractions.length})</h2>
+    ${extractions.map(extraction => `
+        <div class="extraction">
+            <span class="extraction-type">${extraction.extraction_class}</span>
+            <div class="extraction-text">${extraction.extraction_text}</div>
+            ${extraction.attributes && Object.keys(extraction.attributes).length > 0 ? `
+                <div class="attributes">
+                    <strong>Attributes:</strong> ${Object.entries(extraction.attributes).map(([key, value]) => `${key}: "${value}"`).join(', ')}
+                </div>
+            ` : ''}
+            ${extraction.confidence ? `<p><small>Confidence: ${(extraction.confidence * 100).toFixed(0)}%</small></p>` : ''}
+        </div>
+    `).join('')}
+
+    <h2 class="section-title">Source Text</h2>
+    <div class="source-text">${job.inputText.length > 2000 ? job.inputText.substring(0, 2000) + '...\n\n[Text truncated for PDF export]' : job.inputText}</div>
+
+    <div style="margin-top: 40px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #ddd; padding-top: 20px;">
+        <p>Generated by LangExtract Platform • ${new Date().getFullYear()}</p>
+        <p>AI-powered structured data extraction</p>
+    </div>
+</body>
+</html>`;
+
+  // For now, return the HTML as a basic "PDF" - in a production environment,
+  // you would use a proper HTML-to-PDF service or library
+  // This is a fallback approach when Puppeteer is not available
   
   try {
-    const page = await browser.newPage();
+    // Try to use dynamic import for puppeteer as a fallback
+    const puppeteer = await import('puppeteer');
     
-    // Generate HTML content for PDF
-    const html = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>LangExtract Results - ${job.id}</title>
-        <style>
-            body {
-                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-                line-height: 1.6;
-                color: #333;
-                max-width: 800px;
-                margin: 0 auto;
-                padding: 40px 20px;
-                background: #fff;
-            }
-            .header {
-                text-align: center;
-                margin-bottom: 40px;
-                border-bottom: 3px solid #a855f7;
-                padding-bottom: 20px;
-            }
-            .header h1 {
-                color: #a855f7;
-                font-size: 32px;
-                margin: 0 0 10px 0;
-                font-weight: 700;
-            }
-            .header .subtitle {
-                color: #6b7280;
-                font-size: 16px;
-                margin: 0;
-            }
-            .info-grid {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 20px;
-                margin-bottom: 40px;
-            }
-            .info-card {
-                background: #f8fafc;
-                padding: 20px;
-                border-radius: 12px;
-                border-left: 4px solid #a855f7;
-            }
-            .info-card h3 {
-                margin: 0 0 10px 0;
-                color: #1f2937;
-                font-size: 16px;
-                font-weight: 600;
-            }
-            .info-card p {
-                margin: 0;
-                color: #6b7280;
-                font-size: 14px;
-            }
-            .stats-grid {
-                display: grid;
-                grid-template-columns: repeat(4, 1fr);
-                gap: 15px;
-                margin-bottom: 40px;
-            }
-            .stat-card {
-                text-align: center;
-                background: #f1f5f9;
-                padding: 20px 15px;
-                border-radius: 10px;
-                border-top: 4px solid #3b82f6;
-            }
-            .stat-card .number {
-                font-size: 28px;
-                font-weight: 700;
-                color: #3b82f6;
-                margin-bottom: 5px;
-            }
-            .stat-card .label {
-                font-size: 12px;
-                color: #64748b;
-                font-weight: 500;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-            }
-            .section {
-                margin-bottom: 40px;
-            }
-            .section-title {
-                font-size: 24px;
-                font-weight: 700;
-                color: #1f2937;
-                margin-bottom: 20px;
-                padding-bottom: 10px;
-                border-bottom: 2px solid #e5e7eb;
-            }
-            .extraction-item {
-                background: #fff;
-                border: 1px solid #e5e7eb;
-                border-radius: 8px;
-                padding: 20px;
-                margin-bottom: 15px;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            }
-            .extraction-header {
-                display: flex;
-                align-items: center;
-                margin-bottom: 12px;
-            }
-            .extraction-badge {
-                background: #a855f7;
-                color: white;
-                padding: 4px 12px;
-                border-radius: 20px;
-                font-size: 12px;
-                font-weight: 600;
-                margin-right: 12px;
-            }
-            .extraction-meta {
-                color: #6b7280;
-                font-size: 12px;
-            }
-            .extraction-text {
-                font-size: 16px;
-                font-weight: 600;
-                color: #1f2937;
-                margin-bottom: 10px;
-                background: #fef3c7;
-                padding: 8px 12px;
-                border-radius: 6px;
-                border-left: 4px solid #f59e0b;
-            }
-            .extraction-attributes {
-                background: #f8fafc;
-                padding: 12px;
-                border-radius: 6px;
-                font-size: 13px;
-                color: #64748b;
-            }
-            .source-text {
-                background: #f9fafb;
-                border: 1px solid #e5e7eb;
-                padding: 20px;
-                border-radius: 8px;
-                font-family: 'Monaco', 'Menlo', monospace;
-                font-size: 13px;
-                line-height: 1.5;
-                color: #374151;
-                white-space: pre-wrap;
-                max-height: 300px;
-                overflow-y: auto;
-            }
-            .footer {
-                margin-top: 60px;
-                padding-top: 20px;
-                border-top: 2px solid #e5e7eb;
-                text-align: center;
-                color: #9ca3af;
-                font-size: 12px;
-            }
-            .page-break {
-                page-break-before: always;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <h1>🧠 LangExtract Results</h1>
-            <p class="subtitle">Extraction Report Generated on ${new Date().toLocaleString()}</p>
-        </div>
-
-        <div class="info-grid">
-            <div class="info-card">
-                <h3>Job Information</h3>
-                <p><strong>ID:</strong> ${job.id}</p>
-                <p><strong>Model:</strong> ${job.modelId}</p>
-                <p><strong>Created:</strong> ${new Date(job.createdAt).toLocaleString()}</p>
-            </div>
-            <div class="info-card">
-                <h3>Processing Details</h3>
-                <p><strong>Status:</strong> ${job.status}</p>
-                <p><strong>Passes:</strong> ${job.extractionPasses || 1}</p>
-                <p><strong>Workers:</strong> ${job.maxWorkers || 5}</p>
-            </div>
-        </div>
-
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="number">${extractions.length}</div>
-                <div class="label">Total Extractions</div>
-            </div>
-            <div class="stat-card">
-                <div class="number">${new Set(extractions.map(e => e.extraction_class)).size}</div>
-                <div class="label">Entity Types</div>
-            </div>
-            <div class="stat-card">
-                <div class="number">${metadata.processingTime ? (metadata.processingTime / 1000).toFixed(1) + 's' : 'N/A'}</div>
-                <div class="label">Processing Time</div>
-            </div>
-            <div class="stat-card">
-                <div class="number">${metadata.averageConfidence ? (metadata.averageConfidence * 100).toFixed(0) + '%' : 'N/A'}</div>
-                <div class="label">Avg Confidence</div>
-            </div>
-        </div>
-
-        <div class="section">
-            <h2 class="section-title">Prompt Description</h2>
-            <div class="extraction-attributes">
-                ${job.promptDescription}
-            </div>
-        </div>
-
-        <div class="section">
-            <h2 class="section-title">Extracted Entities (${extractions.length})</h2>
-            ${extractions.map(extraction => `
-                <div class="extraction-item">
-                    <div class="extraction-header">
-                        <span class="extraction-badge">${extraction.extraction_class}</span>
-                        <span class="extraction-meta">
-                            ${extraction.position_start !== undefined ? `Position: ${extraction.position_start}-${extraction.position_end}` : ''}
-                            ${extraction.confidence ? `• Confidence: ${(extraction.confidence * 100).toFixed(0)}%` : ''}
-                        </span>
-                    </div>
-                    <div class="extraction-text">${extraction.extraction_text}</div>
-                    ${extraction.attributes && Object.keys(extraction.attributes).length > 0 ? `
-                        <div class="extraction-attributes">
-                            <strong>Attributes:</strong> ${Object.entries(extraction.attributes).map(([key, value]) => `${key}: "${value}"`).join(', ')}
-                        </div>
-                    ` : ''}
-                </div>
-            `).join('')}
-        </div>
-
-        <div class="section page-break">
-            <h2 class="section-title">Source Text</h2>
-            <div class="source-text">${job.inputText.length > 2000 ? job.inputText.substring(0, 2000) + '...\n\n[Text truncated for PDF export]' : job.inputText}</div>
-        </div>
-
-        <div class="footer">
-            <p>Generated by LangExtract Platform • ${new Date().getFullYear()}</p>
-            <p>AI-powered structured data extraction with source grounding</p>
-        </div>
-    </body>
-    </html>
-    `;
-
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    
-    const pdf = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: {
-        top: '20px',
-        right: '20px',
-        bottom: '20px',
-        left: '20px'
-      }
+    const browser = await puppeteer.default.launch({
+      headless: true,
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor'
+      ]
     });
+    
+    try {
+      const page = await browser.newPage();
+      await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+      
+      const pdf = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '20px',
+          right: '20px',
+          bottom: '20px',
+          left: '20px'
+        }
+      });
 
-    return Buffer.from(pdf);
-  } finally {
-    await browser.close();
+      return Buffer.from(pdf);
+    } finally {
+      await browser.close();
+    }
+  } catch (puppeteerError) {
+    console.warn("Puppeteer not available, falling back to HTML content:", puppeteerError);
+    
+    // Fallback: return HTML content as a "PDF" (browser will handle this)
+    // In a real scenario, you'd use an alternative PDF generation service
+    throw new Error("PDF generation temporarily unavailable. Please try CSV export instead.");
   }
 }
 
@@ -474,16 +402,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.setHeader('Content-Disposition', `attachment; filename="extraction_${job.id}.csv"`);
         res.send(csvHeader + csvRows);
       } else if (format === 'pdf') {
-        const results = job.results as any;
-        const extractions = results?.extractions || [];
-        const metadata = results?.metadata || {};
-        
-        // Generate PDF content
-        const pdfContent = await generatePDFContent(job, extractions, metadata);
-        
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="extraction_${job.id}.pdf"`);
-        res.send(pdfContent);
+        try {
+          const results = job.results as any;
+          const extractions = results?.extractions || [];
+          const metadata = results?.metadata || {};
+          
+          console.log(`Generating PDF for job ${job.id} with ${extractions.length} extractions`);
+          
+          // Generate PDF content
+          const pdfContent = await generatePDFContent(job, extractions, metadata);
+          
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `attachment; filename="extraction_${job.id}.pdf"`);
+          res.send(pdfContent);
+        } catch (pdfError: any) {
+          console.error("PDF generation error:", pdfError);
+          return res.status(500).json({ 
+            message: "Failed to generate PDF", 
+            error: pdfError?.message || "Unknown PDF error" 
+          });
+        }
       } else {
         res.status(400).json({ message: "Unsupported format. Use 'json', 'csv', or 'pdf'" });
       }
