@@ -24,15 +24,15 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-white border-b border-gray-200 glass-effect">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-16">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center">
-                <Brain className="text-white w-4 h-4" />
+              <div className="w-8 h-8 gradient-primary rounded-lg flex items-center justify-center glow-primary">
+                <Brain className="text-white w-4 h-4 animate-bounce-subtle" />
               </div>
-              <h1 className="text-xl font-semibold text-gray-900">LangExtract</h1>
-              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full font-medium">Platform</span>
+              <h1 className="text-xl font-bold text-gradient">LangExtract</h1>
+              <span className="text-xs bg-primary/15 text-primary px-3 py-1 rounded-full font-semibold animate-pulse-slow">Platform</span>
             </div>
           </div>
         </div>
@@ -40,32 +40,32 @@ export default function Home() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Hero Section */}
-        <div className="text-center mb-12 animate-fade-in">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+        <div className="text-center mb-16 animate-fade-in">
+          <h2 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
             Extract Structured Data from{" "}
-            <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            <span className="text-gradient">
               Any File or URL
             </span>
           </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
+          <p className="text-xl md:text-2xl text-gray-600 max-w-4xl mx-auto mb-10 leading-relaxed">
             Upload documents (PDF, Word, Excel, PowerPoint, etc.) or paste URLs for AI-powered extraction.
             Support for Gemini and OpenAI with comprehensive file processing and web scraping via FireCrawl.
           </p>
-          <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-500">
-            <div className="flex items-center">
-              <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+          <div className="flex flex-wrap justify-center gap-6 text-base text-gray-600">
+            <div className="flex items-center bg-white rounded-full px-4 py-2 shadow-sm border card-hover">
+              <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
               All File Formats
             </div>
-            <div className="flex items-center">
-              <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+            <div className="flex items-center bg-white rounded-full px-4 py-2 shadow-sm border card-hover">
+              <CheckCircle className="w-5 h-5 text-blue-500 mr-3" />
               AI Web Scraping
             </div>
-            <div className="flex items-center">
-              <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+            <div className="flex items-center bg-white rounded-full px-4 py-2 shadow-sm border card-hover">
+              <CheckCircle className="w-5 h-5 text-purple-500 mr-3" />
               Source Grounding
             </div>
-            <div className="flex items-center">
-              <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+            <div className="flex items-center bg-white rounded-full px-4 py-2 shadow-sm border card-hover">
+              <CheckCircle className="w-5 h-5 text-orange-500 mr-3" />
               Visual Extraction
             </div>
           </div>
@@ -89,15 +89,15 @@ export default function Home() {
             )}
 
             {!activeJob && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Brain className="w-8 h-8 text-primary" />
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-12 text-center card-hover animate-slide-up">
+                <div className="w-20 h-20 gradient-primary rounded-full flex items-center justify-center mx-auto mb-6 glow-primary">
+                  <Brain className="w-10 h-10 text-white animate-bounce-subtle" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to Extract</h3>
-                <p className="text-gray-600 mb-6">
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">Ready to Extract</h3>
+                <p className="text-lg text-gray-600 mb-8">
                   Configure your extraction task on the left to see results here.
                 </p>
-                <div className="text-sm text-gray-500">
+                <div className="text-base text-gray-500 bg-gray-50 rounded-lg p-4 border-l-4 border-primary">
                   Start by entering your text, selecting a model, and defining your extraction prompt.
                 </div>
               </div>

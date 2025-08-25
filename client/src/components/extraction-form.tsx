@@ -37,25 +37,35 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      inputText: "Lady Juliet gazed longingly at the stars, her heart aching for Romeo. The moonlight cast a silver glow across her face as she whispered his name into the night.",
-      promptDescription: "Extract characters, emotions, and relationships in order of appearance. Use exact text for extractions. Do not paraphrase or overlap entities. Provide meaningful attributes for each entity to add context.",
+      inputText: "Dr. Sarah Chen, the lead researcher at Stanford University, published groundbreaking findings on AI safety in Nature journal. The study involved 500 participants and took place from 2023 to 2024. Her team discovered critical vulnerabilities that could affect millions of users globally.",
+      promptDescription: "Extract people, organizations, locations, dates, numbers, and research findings. Focus on factual information with specific attributes like roles, affiliations, and quantitative data.",
       examples: [{
-        text: "ROMEO. But soft! What light through yonder window breaks? It is the east, and Juliet is the sun.",
+        text: "Dr. John Smith from MIT published a paper in Science journal about quantum computing breakthroughs in December 2023.",
         extractions: [
           {
-            extraction_class: "character",
-            extraction_text: "ROMEO",
-            attributes: { emotional_state: "wonder" }
+            extraction_class: "person",
+            extraction_text: "Dr. John Smith",
+            attributes: { title: "Dr.", role: "researcher", affiliation: "MIT" }
           },
           {
-            extraction_class: "emotion",
-            extraction_text: "But soft!",
-            attributes: { feeling: "gentle awe" }
+            extraction_class: "organization",
+            extraction_text: "MIT",
+            attributes: { type: "university", field: "technology" }
           },
           {
-            extraction_class: "relationship",
-            extraction_text: "Juliet is the sun",
-            attributes: { type: "metaphor" }
+            extraction_class: "publication",
+            extraction_text: "Science journal",
+            attributes: { type: "academic_journal", prestige: "high" }
+          },
+          {
+            extraction_class: "research_topic",
+            extraction_text: "quantum computing breakthroughs",
+            attributes: { field: "computer_science", significance: "breakthrough" }
+          },
+          {
+            extraction_class: "date",
+            extraction_text: "December 2023",
+            attributes: { granularity: "month", type: "publication_date" }
           }
         ]
       }],
@@ -220,11 +230,13 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           {/* Input Source Card */}
-          <Card>
+          <Card className="card-hover animate-slide-up">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                  <FileText className="text-primary mr-2 w-5 h-5" />
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                  <div className="w-8 h-8 gradient-primary rounded-lg flex items-center justify-center mr-3">
+                    <FileText className="text-white w-4 h-4" />
+                  </div>
                   Input Source
                 </h3>
               </div>
@@ -372,10 +384,12 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
           </Card>
 
           {/* Model Configuration Card */}
-          <Card>
+          <Card className="card-hover animate-slide-up">
             <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <Bot className="text-secondary mr-2 w-5 h-5" />
+              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                <div className="w-8 h-8 gradient-accent rounded-lg flex items-center justify-center mr-3">
+                  <Bot className="text-white w-4 h-4" />
+                </div>
                 Model Configuration
               </h3>
 
@@ -454,10 +468,12 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
           </Card>
 
           {/* Extraction Task Configuration */}
-          <Card>
+          <Card className="card-hover animate-slide-up">
             <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <ListTodo className="text-accent mr-2 w-5 h-5" />
+              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center mr-3">
+                  <ListTodo className="text-white w-4 h-4" />
+                </div>
                 Extraction Task
               </h3>
 
@@ -550,10 +566,10 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
           <div className="flex space-x-4">
             <Button
               type="submit"
-              className="flex-1 bg-primary text-white hover:bg-primary/90"
+              className="flex-1 gradient-primary text-white hover:scale-105 transition-all duration-200 glow-primary text-lg py-6 font-semibold"
               disabled={createJobMutation.isPending}
             >
-              <Play className="w-4 h-4 mr-2" />
+              <Play className="w-5 h-5 mr-2" />
               {createJobMutation.isPending ? "Starting..." : "Start Extraction"}
             </Button>
             <Button
@@ -561,8 +577,9 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
               variant="outline"
               onClick={resetForm}
               disabled={createJobMutation.isPending}
+              className="card-hover py-6 text-lg"
             >
-              <RotateCcw className="w-4 h-4 mr-2" />
+              <RotateCcw className="w-5 h-5 mr-2" />
               Reset
             </Button>
           </div>

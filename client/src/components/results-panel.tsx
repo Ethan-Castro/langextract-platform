@@ -94,13 +94,15 @@ export function ResultsPanel({ job }: ResultsPanelProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-fade-in">
       {/* Results Summary Card */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <BarChart3 className="text-green-600 mr-2 w-5 h-5" />
+      <Card className="card-hover">
+        <CardContent className="p-8">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-2xl font-bold text-gray-900 flex items-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center mr-4">
+                <BarChart3 className="text-white w-5 h-5" />
+              </div>
               Extraction Results
             </h3>
             <div className="flex space-x-2">
@@ -132,30 +134,30 @@ export function ResultsPanel({ job }: ResultsPanelProps) {
           </div>
 
           {/* Statistics Grid */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+            <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-l-4 border-blue-500 card-hover">
+              <div className="text-3xl font-bold text-blue-600 mb-2">
                 {metadata.totalExtractions || extractions.length}
               </div>
-              <div className="text-sm text-blue-800">Total Extractions</div>
+              <div className="text-sm font-semibold text-blue-800">Total Extractions</div>
             </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">
+            <div className="text-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-l-4 border-green-500 card-hover">
+              <div className="text-3xl font-bold text-green-600 mb-2">
                 {metadata.uniqueClasses || entityTypes.length}
               </div>
-              <div className="text-sm text-green-800">Entity Types</div>
+              <div className="text-sm font-semibold text-green-800">Entity Types</div>
             </div>
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
-              <div className="text-2xl font-bold text-purple-600">
+            <div className="text-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border-l-4 border-purple-500 card-hover">
+              <div className="text-3xl font-bold text-purple-600 mb-2">
                 {results?.processingTime ? `${(results.processingTime / 1000).toFixed(1)}s` : 'N/A'}
               </div>
-              <div className="text-sm text-purple-800">Processing Time</div>
+              <div className="text-sm font-semibold text-purple-800">Processing Time</div>
             </div>
-            <div className="text-center p-4 bg-amber-50 rounded-lg">
-              <div className="text-2xl font-bold text-amber-600">
+            <div className="text-center p-6 bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl border-l-4 border-amber-500 card-hover">
+              <div className="text-3xl font-bold text-amber-600 mb-2">
                 {metadata.averageConfidence ? `${(metadata.averageConfidence * 100).toFixed(0)}%` : 'N/A'}
               </div>
-              <div className="text-sm text-amber-800">Avg. Confidence</div>
+              <div className="text-sm font-semibold text-amber-800">Avg. Confidence</div>
             </div>
           </div>
 
@@ -212,7 +214,7 @@ export function ResultsPanel({ job }: ResultsPanelProps) {
                       <div className="font-medium text-gray-900 mb-1">
                         {extraction.extraction_text}
                       </div>
-                      {Object.keys(extraction.attributes).length > 0 && (
+                      {extraction.attributes && Object.keys(extraction.attributes).length > 0 && (
                         <div className="text-xs text-gray-500">
                           <strong>Attributes:</strong>{" "}
                           {Object.entries(extraction.attributes)
@@ -237,11 +239,13 @@ export function ResultsPanel({ job }: ResultsPanelProps) {
       </Card>
 
       {/* Source Text with Highlighting */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Search className="text-yellow-600 mr-2 w-5 h-5" />
+      <Card className="card-hover">
+        <CardContent className="p-8">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-2xl font-bold text-gray-900 flex items-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-lg flex items-center justify-center mr-4">
+                <Search className="text-white w-5 h-5" />
+              </div>
               Source Text with Highlights
             </h3>
             <Button
@@ -273,25 +277,27 @@ export function ResultsPanel({ job }: ResultsPanelProps) {
       </Card>
 
       {/* Interactive Visualization Preview */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <BarChart3 className="text-accent mr-2 w-5 h-5" />
+      <Card className="card-hover">
+        <CardContent className="p-8">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-2xl font-bold text-gray-900 flex items-center">
+              <div className="w-10 h-10 gradient-accent rounded-lg flex items-center justify-center mr-4">
+                <BarChart3 className="text-white w-5 h-5" />
+              </div>
               Interactive Visualization
             </h3>
-            <Button onClick={handleVisualize} className="bg-accent text-white hover:bg-accent/90">
-              <ExternalLink className="w-4 h-4 mr-2" />
+            <Button onClick={handleVisualize} className="gradient-accent text-white hover:scale-105 transition-all duration-200 glow-primary py-3 px-6 text-lg font-semibold">
+              <ExternalLink className="w-5 h-5 mr-2" />
               Open Full Visualization
             </Button>
           </div>
           
-          <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-8 text-center border-2 border-dashed border-blue-200">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <BarChart3 className="w-8 h-8 text-blue-600" />
+          <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-xl p-12 text-center border-2 border-dashed border-purple-300 card-hover">
+            <div className="w-20 h-20 gradient-primary rounded-full flex items-center justify-center mx-auto mb-6 glow-primary">
+              <BarChart3 className="w-10 h-10 text-white animate-bounce-subtle" />
             </div>
-            <p className="text-gray-600 mb-4">Interactive HTML visualization available</p>
-            <p className="text-sm text-gray-500">
+            <p className="text-xl text-gray-700 mb-6 font-semibold">Interactive HTML visualization available</p>
+            <p className="text-lg text-gray-600 leading-relaxed">
               Click "Open Full Visualization" to see the detailed interactive view with entity highlighting,
               relationship graphs, and detailed analytics.
             </p>
