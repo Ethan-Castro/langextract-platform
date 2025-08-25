@@ -31,6 +31,7 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [useExamples, setUseExamples] = useState(false);
+  const [isGeneratingExamples, setIsGeneratingExamples] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -195,6 +196,68 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
         extractions: []
       }
     ]);
+  };
+
+  const removeExample = (index: number) => {
+    const currentExamples = form.getValues("examples");
+    form.setValue("examples", currentExamples.filter((_, i) => i !== index));
+  };
+
+  const generateExamples = async () => {
+    const promptDescription = form.getValues("promptDescription");
+    if (!promptDescription.trim()) {
+      toast({
+        title: "Prompt Required",
+        description: "Please enter a prompt description before generating examples.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingExamples(true);
+    try {
+      const response = await fetch("/api/generate-examples", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          promptDescription,
+          count: 2
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to generate examples");
+      }
+
+      const result = await response.json();
+      
+      // Add generated examples to the form
+      const currentExamples = form.getValues("examples");
+      const newExamples = [...currentExamples, ...result.examples];
+      form.setValue("examples", newExamples);
+      
+      // Enable examples if not already enabled
+      if (!useExamples) {
+        setUseExamples(true);
+      }
+
+      toast({
+        title: "Examples Generated!",
+        description: `Successfully generated ${result.generated} example${result.generated > 1 ? 's' : ''} using AI.`,
+      });
+    } catch (error) {
+      console.error("Failed to generate examples:", error);
+      toast({
+        title: "Generation Failed",
+        description: error instanceof Error ? error.message : "Failed to generate examples. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingExamples(false);
+    }
   };
 
   return (
@@ -524,16 +587,40 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
                       </div>
                     </div>
                     {useExamples && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={addExample}
-                        className="text-primary hover:text-primary/80"
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Add Example
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={generateExamples}
+                          disabled={isGeneratingExamples}
+                          className="text-purple-600 hover:text-purple-700 border-purple-200 hover:border-purple-300"
+                        >
+                          {isGeneratingExamples ? (
+                            <>
+                              <div className="w-4 h-4 mr-1 animate-spin rounded-full border-2 border-purple-300 border-t-purple-600"></div>
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                              </svg>
+                              Generate with AI
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={addExample}
+                          className="text-primary hover:text-primary/80"
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          Add Manual
+                        </Button>
+                      </div>
                     )}
                   </div>
 
@@ -584,16 +671,45 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
                   ))}
 
                   {useExamples && form.watch("examples").length === 0 && (
-                    <div className="text-center py-8 bg-gray-50 border border-dashed border-gray-300 rounded-lg">
-                      <p className="text-gray-500 mb-4">No examples added yet</p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={addExample}
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Your First Example
-                      </Button>
+                    <div className="text-center py-8 bg-gradient-to-br from-purple-50 to-cyan-50 border border-dashed border-purple-200 rounded-lg">
+                      <div className="mb-4">
+                        <svg className="w-12 h-12 mx-auto text-purple-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                        <p className="text-gray-600 mb-1 font-medium">No examples added yet</p>
+                        <p className="text-sm text-gray-500">Generate AI examples or add manual ones to improve extraction accuracy</p>
+                      </div>
+                      <div className="flex justify-center gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={generateExamples}
+                          disabled={isGeneratingExamples}
+                          className="text-purple-600 hover:text-purple-700 border-purple-200 hover:border-purple-300"
+                        >
+                          {isGeneratingExamples ? (
+                            <>
+                              <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-purple-300 border-t-purple-600"></div>
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                              </svg>
+                              Generate with AI
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={addExample}
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Manual Example
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>

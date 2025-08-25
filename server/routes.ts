@@ -14,8 +14,17 @@ import path from "path";
 import os from "os";
 import puppeteer from "puppeteer";
 import type { ExtractionResult } from "@shared/schema";
+import { GeminiExampleService } from "./services/gemini";
 
 const langExtractService = new LangExtractService();
+let geminiExampleService: GeminiExampleService | null = null;
+
+// Initialize Gemini service if API key is available
+try {
+  geminiExampleService = new GeminiExampleService();
+} catch (error) {
+  console.warn("Gemini service not available:", error);
+}
 
 // Helper function to generate PDF content
 async function generatePDFContent(job: any, extractions: ExtractionResult[], metadata: any): Promise<Buffer> {
@@ -373,7 +382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json(job);
-    } catch (error) {
+    } catch (error: any) {
       res.status(400).json({ message: error instanceof Error ? error.message : "Invalid request" });
     }
   });
@@ -386,7 +395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Job not found" });
       }
       res.json(job);
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: "Failed to fetch job" });
     }
   });
@@ -396,7 +405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const jobs = await storage.getUserExtractionJobs();
       res.json(jobs);
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: "Failed to fetch jobs" });
     }
   });
@@ -422,7 +431,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.setHeader('Content-Type', 'text/html');
       res.send(html);
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: "Failed to generate visualization" });
     }
   });
@@ -478,8 +487,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(400).json({ message: "Unsupported format. Use 'json', 'csv', or 'pdf'" });
       }
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: "Failed to export results" });
+    }
+  });
+
+  // Generate examples using Gemini AI
+  app.post("/api/generate-examples", async (req, res) => {
+    try {
+      if (!geminiExampleService) {
+        return res.status(400).json({ 
+          message: "AI example generation not available. Please ensure GEMINI_API_KEY is configured." 
+        });
+      }
+
+      const { promptDescription, count = 1 } = req.body;
+      
+      if (!promptDescription || typeof promptDescription !== 'string') {
+        return res.status(400).json({ 
+          message: "promptDescription is required and must be a string" 
+        });
+      }
+
+      const requestedCount = Math.min(Math.max(1, parseInt(count) || 1), 3); // Limit to 1-3 examples
+      
+      const examples = await geminiExampleService.generateMultipleExamples(
+        promptDescription, 
+        requestedCount
+      );
+
+      res.json({ 
+        examples,
+        generated: examples.length,
+        requested: requestedCount
+      });
+    } catch (error: any) {
+      console.error("Failed to generate examples:", error);
+      res.status(500).json({ 
+        message: "Failed to generate examples",
+        details: error?.message || "Unknown error"
+      });
     }
   });
 
@@ -525,7 +572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             const result = await mammoth.extractRawText({ buffer: req.file.buffer });
             text = result.value;
-          } catch (error) {
+          } catch (error: any) {
             return res.status(400).json({ 
               message: "Failed to parse file. Enhanced extraction unavailable.",
               error: extractionError.message 
@@ -554,7 +601,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fs.unlink(tempFilePath).catch(() => {});
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("File upload error:", error);
       res.status(500).json({ message: "Failed to process uploaded file" });
     }
@@ -654,7 +701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         length: text.length
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("URL fetch error:", error);
       res.status(500).json({ 
         message: "Failed to fetch content from URL",
