@@ -41,9 +41,10 @@ Guidelines:
 - Create realistic, varied example text (2-4 sentences)
 - Include 3-5 relevant extractions that match the prompt
 - Use meaningful entity classes and attributes
-- Make attributes specific and useful
+- Make attributes specific and useful (name, role, type, etc.)
 - Ensure extracted text appears in the example text
-- Keep it professional and factual`;
+- Keep it professional and factual
+- All extraction_text must be exact substrings from the example text`;
 
       const userPrompt = `Create a training example for this extraction task:
 
@@ -55,26 +56,7 @@ Generate realistic example text and corresponding extractions that would help tr
         model: "gemini-2.5-flash",
         config: {
           systemInstruction: systemPrompt,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "object",
-            properties: {
-              text: { type: "string" },
-              extractions: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    extraction_class: { type: "string" },
-                    extraction_text: { type: "string" },
-                    attributes: { type: "object" }
-                  },
-                  required: ["extraction_class", "extraction_text", "attributes"]
-                }
-              }
-            },
-            required: ["text", "extractions"]
-          }
+          responseMimeType: "application/json"
         },
         contents: userPrompt,
       });
@@ -84,15 +66,49 @@ Generate realistic example text and corresponding extractions that would help tr
         throw new Error("Empty response from Gemini");
       }
 
-      const result = JSON.parse(rawJson) as GeneratedExample;
+      let result: GeneratedExample;
+      try {
+        result = JSON.parse(rawJson) as GeneratedExample;
+      } catch (parseError) {
+        console.error("Failed to parse Gemini response:", rawJson);
+        throw new Error("Invalid JSON response from Gemini AI");
+      }
       
-      // Validate the result
-      if (!result.text || !result.extractions || !Array.isArray(result.extractions)) {
+      // Validate the result structure
+      if (!result || typeof result !== 'object') {
         throw new Error("Invalid response format from Gemini");
+      }
+      
+      if (!result.text || typeof result.text !== 'string' || result.text.trim().length === 0) {
+        throw new Error("Generated example text is empty or invalid");
+      }
+
+      if (!result.extractions || !Array.isArray(result.extractions)) {
+        throw new Error("Generated extractions are missing or invalid");
       }
 
       if (result.extractions.length === 0) {
-        throw new Error("No extractions generated");
+        throw new Error("No extractions were generated");
+      }
+
+      // Validate each extraction
+      for (let i = 0; i < result.extractions.length; i++) {
+        const extraction = result.extractions[i];
+        if (!extraction.extraction_class || !extraction.extraction_text) {
+          console.warn(`Invalid extraction at index ${i}:`, extraction);
+          result.extractions.splice(i, 1); // Remove invalid extraction
+          i--; // Adjust index after removal
+        }
+        
+        // Ensure attributes is an object
+        if (!extraction.attributes || typeof extraction.attributes !== 'object') {
+          extraction.attributes = {};
+        }
+      }
+
+      // Final check after cleanup
+      if (result.extractions.length === 0) {
+        throw new Error("All generated extractions were invalid");
       }
 
       return result;
