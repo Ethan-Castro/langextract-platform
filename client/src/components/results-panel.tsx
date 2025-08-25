@@ -48,7 +48,7 @@ export function ResultsPanel({ job }: ResultsPanelProps) {
     ? extractions 
     : extractions.filter(e => e.extraction_class === selectedEntityType);
 
-  const handleExport = async (format: "json" | "csv") => {
+  const handleExport = async (format: "json" | "csv" | "pdf") => {
     try {
       const response = await fetch(`/api/extractions/${job.id}/export?format=${format}`);
       if (response.ok) {
@@ -121,6 +121,15 @@ export function ResultsPanel({ job }: ResultsPanelProps) {
               >
                 <Table className="w-4 h-4 mr-1" />
                 CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport("pdf")}
+                className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+              >
+                <Download className="w-4 h-4 mr-1" />
+                PDF
               </Button>
               <Button
                 variant="outline"

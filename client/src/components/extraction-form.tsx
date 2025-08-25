@@ -30,6 +30,7 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
   const [urlInput, setUrlInput] = useState("");
+  const [useExamples, setUseExamples] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -39,36 +40,7 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
     defaultValues: {
       inputText: "Dr. Sarah Chen, the lead researcher at Stanford University, published groundbreaking findings on AI safety in Nature journal. The study involved 500 participants and took place from 2023 to 2024. Her team discovered critical vulnerabilities that could affect millions of users globally.",
       promptDescription: "Extract people, organizations, locations, dates, numbers, and research findings. Focus on factual information with specific attributes like roles, affiliations, and quantitative data.",
-      examples: [{
-        text: "Dr. John Smith from MIT published a paper in Science journal about quantum computing breakthroughs in December 2023.",
-        extractions: [
-          {
-            extraction_class: "person",
-            extraction_text: "Dr. John Smith",
-            attributes: { title: "Dr.", role: "researcher", affiliation: "MIT" }
-          },
-          {
-            extraction_class: "organization",
-            extraction_text: "MIT",
-            attributes: { type: "university", field: "technology" }
-          },
-          {
-            extraction_class: "publication",
-            extraction_text: "Science journal",
-            attributes: { type: "academic_journal", prestige: "high" }
-          },
-          {
-            extraction_class: "research_topic",
-            extraction_text: "quantum computing breakthroughs",
-            attributes: { field: "computer_science", significance: "breakthrough" }
-          },
-          {
-            extraction_class: "date",
-            extraction_text: "December 2023",
-            attributes: { granularity: "month", type: "publication_date" }
-          }
-        ]
-      }],
+      examples: [],
       modelId: "gemini-2.5-flash",
       extractionPasses: 1,
       maxWorkers: 5,
@@ -498,21 +470,74 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
 
                 {/* Example Data Section */}
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Label>Example Data</Label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={addExample}
-                      className="text-primary hover:text-primary/80"
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add Example
-                    </Button>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <Label>Example Data</Label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="useExamples"
+                          checked={useExamples}
+                          onChange={(e) => {
+                            setUseExamples(e.target.checked);
+                            if (!e.target.checked) {
+                              form.setValue("examples", []);
+                            } else if (form.getValues("examples").length === 0) {
+                              // Add default example when enabling
+                              form.setValue("examples", [{
+                                text: "Dr. John Smith from MIT published a paper in Science journal about quantum computing breakthroughs in December 2023.",
+                                extractions: [
+                                  {
+                                    extraction_class: "person",
+                                    extraction_text: "Dr. John Smith",
+                                    attributes: { title: "Dr.", role: "researcher", affiliation: "MIT" }
+                                  },
+                                  {
+                                    extraction_class: "organization",
+                                    extraction_text: "MIT",
+                                    attributes: { type: "university", field: "technology" }
+                                  },
+                                  {
+                                    extraction_class: "publication",
+                                    extraction_text: "Science journal",
+                                    attributes: { type: "academic_journal", prestige: "high" }
+                                  },
+                                  {
+                                    extraction_class: "research_topic",
+                                    extraction_text: "quantum computing breakthroughs",
+                                    attributes: { field: "computer_science", significance: "breakthrough" }
+                                  },
+                                  {
+                                    extraction_class: "date",
+                                    extraction_text: "December 2023",
+                                    attributes: { granularity: "month", type: "publication_date" }
+                                  }
+                                ]
+                              }]);
+                            }
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                        <label htmlFor="useExamples" className="text-sm text-gray-600 cursor-pointer">
+                          Provide example data to improve accuracy (optional)
+                        </label>
+                      </div>
+                    </div>
+                    {useExamples && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={addExample}
+                        className="text-primary hover:text-primary/80"
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Add Example
+                      </Button>
+                    )}
                   </div>
 
-                  {form.watch("examples").map((_, index) => (
+                  {useExamples && form.watch("examples").map((_, index) => (
                     <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50 space-y-3">
                       <FormField
                         control={form.control}
@@ -557,6 +582,20 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
                       />
                     </div>
                   ))}
+
+                  {useExamples && form.watch("examples").length === 0 && (
+                    <div className="text-center py-8 bg-gray-50 border border-dashed border-gray-300 rounded-lg">
+                      <p className="text-gray-500 mb-4">No examples added yet</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={addExample}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Your First Example
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

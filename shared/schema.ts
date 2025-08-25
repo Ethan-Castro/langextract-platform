@@ -14,7 +14,7 @@ export const extractionJobs = pgTable("extraction_jobs", {
   userId: varchar("user_id"),
   inputText: text("input_text").notNull(),
   promptDescription: text("prompt_description").notNull(),
-  examples: json("examples").notNull(),
+  examples: json("examples").default([]),
   modelId: text("model_id").notNull(),
   extractionPasses: integer("extraction_passes").default(1),
   maxWorkers: integer("max_workers").default(5),
@@ -41,7 +41,7 @@ export const insertExtractionJobSchema = createInsertSchema(extractionJobs).omit
       extraction_text: z.string(),
       attributes: z.record(z.string(), z.any()),
     }))
-  }))
+  })).optional().default([])
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
