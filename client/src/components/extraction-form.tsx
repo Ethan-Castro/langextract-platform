@@ -516,7 +516,17 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
                     name="extractionPasses"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Extraction Passes</FormLabel>
+                        <FormLabel className="flex items-center gap-2">
+                          Extraction Passes
+                          <div className="group relative">
+                            <svg className="w-4 h-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block w-64 p-2 bg-gray-900 text-white text-xs rounded shadow-lg z-50">
+                              Number of times to run extraction on the same text. Multiple passes can improve accuracy by refining results, especially for complex documents. 1-2 passes are usually sufficient.
+                            </div>
+                          </div>
+                        </FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -525,8 +535,12 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
                             max={5}
                             value={field.value || ""}
                             onChange={(e) => field.onChange(parseInt(e.target.value) || null)}
+                            placeholder="1"
                           />
                         </FormControl>
+                        <div className="text-xs text-gray-500">
+                          Run extraction multiple times to improve accuracy (1-5)
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -536,7 +550,17 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
                     name="maxWorkers"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Max Workers</FormLabel>
+                        <FormLabel className="flex items-center gap-2">
+                          Max Workers
+                          <div className="group relative">
+                            <svg className="w-4 h-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block w-64 p-2 bg-gray-900 text-white text-xs rounded shadow-lg z-50">
+                              Number of parallel workers for processing large documents. Higher values process faster but use more API calls. 5-10 works well for most documents.
+                            </div>
+                          </div>
+                        </FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -545,8 +569,12 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
                             max={20}
                             value={field.value || ""}
                             onChange={(e) => field.onChange(parseInt(e.target.value) || null)}
+                            placeholder="5"
                           />
                         </FormControl>
+                        <div className="text-xs text-gray-500">
+                          Parallel processing for large texts (1-20)
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}

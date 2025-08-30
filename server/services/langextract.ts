@@ -295,9 +295,11 @@ if __name__ == "__main__":
                             </div>
                             <div class="font-medium text-gray-900 mb-1">${ext.extraction_text}</div>
                             <div class="text-sm text-gray-600">
-                                ${Object.entries(ext.attributes).map(([key, value]) => 
-                                    `<strong>${key}:</strong> ${value}`
-                                ).join(', ')}
+                                ${ext.attributes && Object.keys(ext.attributes).length > 0 ? 
+                                    Object.entries(ext.attributes).map(([key, value]) => 
+                                        `<strong>${key}:</strong> ${value}`
+                                    ).join(', ') : 'No additional attributes'
+                                }
                             </div>
                         </div>
                     `).join('')}

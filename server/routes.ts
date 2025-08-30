@@ -220,11 +220,22 @@ async function generatePDFContent(job: any, extractions: ExtractionResult[], met
       await browser.close();
     }
   } catch (puppeteerError) {
-    console.warn("Puppeteer not available, falling back to HTML content:", puppeteerError);
+    console.warn("Puppeteer not available, using HTML-to-PDF fallback:", puppeteerError);
     
-    // Fallback: return HTML content as a "PDF" (browser will handle this)
-    // In a real scenario, you'd use an alternative PDF generation service
-    throw new Error("PDF generation temporarily unavailable. Please try CSV export instead.");
+    // Enhanced fallback: return HTML with print-friendly styles
+    const printableHtml = htmlContent.replace(
+      '<head>',
+      `<head>
+        <style>
+          @media print {
+            body { background: white !important; }
+            .no-print { display: none !important; }
+          }
+        </style>`
+    );
+    
+    // Return as HTML with proper headers for browser PDF generation
+    return Buffer.from(printableHtml, 'utf8');
   }
 }
 
@@ -412,9 +423,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Generate PDF content
           const pdfContent = await generatePDFContent(job, extractions, metadata);
           
-          res.setHeader('Content-Type', 'application/pdf');
-          res.setHeader('Content-Disposition', `attachment; filename="extraction_${job.id}.pdf"`);
-          res.send(pdfContent);
+          // Check if it's HTML fallback or actual PDF
+          const contentType = pdfContent.toString('utf8').startsWith('<!DOCTYPE html') ? 'text/html' : 'application/pdf';
+          
+          if (contentType === 'text/html') {
+            res.setHeader('Content-Type', 'text/html');
+            res.setHeader('Content-Disposition', 'inline');
+            res.send(pdfContent.toString('utf8'));
+          } else {
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `attachment; filename="extraction_${job.id}.pdf"`);
+            res.send(pdfContent);
+          }
         } catch (pdfError: any) {
           console.error("PDF generation error:", pdfError);
           return res.status(500).json({ 
