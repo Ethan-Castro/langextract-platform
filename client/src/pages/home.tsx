@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ExtractionForm } from "@/components/extraction-form";
 import { ResultsPanel } from "@/components/results-panel";
 import { ProcessingStatus } from "@/components/processing-status";
+import { UseCasesHeader } from "@/components/use-cases-header";
 import { Brain, CheckCircle, Github } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ExtractionJob } from "@shared/schema";
@@ -70,6 +71,9 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        {/* Use Cases Section */}
+        <UseCasesHeader />
 
         {/* Main Application Grid */}
         <div className="grid lg:grid-cols-12 gap-8">

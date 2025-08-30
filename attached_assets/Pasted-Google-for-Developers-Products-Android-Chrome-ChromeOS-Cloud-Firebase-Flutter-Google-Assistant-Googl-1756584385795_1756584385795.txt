@@ -1,0 +1,235 @@
+Google for Developers
+Products
+Android
+Chrome
+ChromeOS
+Cloud
+Firebase
+Flutter
+Google Assistant
+Google Maps Platform
+Google Workspace
+TensorFlow
+YouTube
+Firebase
+Google Ads
+Google Analytics
+Google Play
+Search
+Web Push and Notification APIs
+AdMob
+Google Ads API
+Google Pay
+Google Play Billing
+Interactive Media Ads
+Solutions
+Events
+Learn
+Community
+Google Developer Groups
+Google Developer Student Clubs
+Woman Techmakers
+Google Developer Experts
+Tech Equity Collective
+Accelerator
+Solution Challenge
+DevFest
+All Stories
+Developer Program
+Blog
+Search all articles...
+Search
+
+English
+Gemini
+Introducing LangExtract: A Gemini powered information extraction library
+JULY 30, 2025
+Akshay Goel
+ML Software Engineer
+Atilla Kiraly
+ML Software Engineer
+
+Share
+LangExtract_banner
+In today's data-rich world, valuable insights are often locked away in unstructured text, such as detailed clinical notes, lengthy legal documents, customer feedback threads and evolving news reports. Manually sifting through this information or building bespoke code to process the data is time-consuming and error-prone, and using modern large language models (LLMs) naively may introduce errors. What if you could programmatically extract the exact information you need, while ensuring the outputs are structured and reliably tied back to its source?
+
+Today, we're excited to introduce LangExtract, a new open-source Python library designed to empower developers to do just that. LangExtract provides a lightweight interface to various LLMs such as our Gemini models for processing large volumes of unstructured text into structured information based on your custom instructions, ensuring both flexibility and traceability.
+
+Whether you're working with medical reports, financial summaries, or any other text-heavy domain, LangExtract offers a flexible and powerful way to unlock the data within.
+
+
+What makes LangExtract effective for information extraction
+LangExtract offers a unique combination of capabilities that make it useful for information extraction:
+
+Precise source grounding: Every extracted entity is mapped back to its exact character offsets in the source text. As demonstrated in the animations below, this feature provides traceability by visually highlighting each extraction in the original text, making it much easier to evaluate and verify the extracted information.
+Reliable structured outputs: Define your desired output using the LangExtracts data representation and provide "few-shot" example(s). LangExtract uses this to enforce a schema, leveraging Controlled Generation in supported models like Gemini to ensure consistently structured outputs. This provides robust results, as demonstrated in our full-text analysis of Romeo and Juliet.
+Optimized long-context information extraction: Information retrieval from large documents can be complex. For instance, while LLMs show strong performance on many benchmarks, needle-in-a-haystack tests across million-token contexts show that recall can decrease in multi-fact retrieval scenarios. LangExtract is built to handle this using a chunking strategy, parallel processing and multiple extraction passes over smaller, focused contexts.
+Interactive visualization: Go from raw text to an interactive, self-contained HTML visualization in minutes. LangExtract makes it easy to review extracted entities in context, with support for exploring thousands of annotations.
+Flexible support for LLM backends: Work with your preferred models, whether they are cloud-based LLMs (like Google's Gemini family) or open-source on-device models.
+Flexible across domains: Define information extraction tasks for any domain with just a few well-chosen examples, without the need to fine-tune an LLM. LangExtract “learns” your desired output and can apply it to large, new text inputs. See how it works with this medication extraction example.
+Utilizing LLM world knowledge: In addition to extracting grounded entities, LangExtract can leverage a model's world knowledge to supplement extracted information. This information can be explicit (i.e., derived from the source text) or inferred (i.e., derived from the model's inherent world knowledge). The accuracy and relevance of such supplementary knowledge, particularly when inferred, are heavily influenced by the chosen LLM's capabilities and the precision of the prompt examples guiding the extraction.
+
+Quick start: From Shakespeare to structured objects
+Here's how to extract character details from a line of Shakespeare.
+
+First, install the library:
+
+For more detailed setup instructions, including virtual environments and API key configuration, please see the project README.
+
+pip install langextract
+Python
+
+Next, define your extraction task. Provide a clear prompt and a high-quality "few-shot" example to guide the model.
+
+import textwrap
+import langextract as lx
+
+# 1. Define a concise prompt
+prompt = textwrap.dedent("""\
+Extract characters, emotions, and relationships in order of appearance.
+Use exact text for extractions. Do not paraphrase or overlap entities.
+Provide meaningful attributes for each entity to add context.""")
+
+# 2. Provide a high-quality example to guide the model
+examples = [
+    lx.data.ExampleData(
+        text=(
+            "ROMEO. But soft! What light through yonder window breaks? It is"
+            " the east, and Juliet is the sun."
+        ),
+        extractions=[
+            lx.data.Extraction(
+                extraction_class="character",
+                extraction_text="ROMEO",
+                attributes={"emotional_state": "wonder"},
+            ),
+            lx.data.Extraction(
+                extraction_class="emotion",
+                extraction_text="But soft!",
+                attributes={"feeling": "gentle awe"},
+            ),
+            lx.data.Extraction(
+                extraction_class="relationship",
+                extraction_text="Juliet is the sun",
+                attributes={"type": "metaphor"},
+            ),
+        ],
+    )
+]
+
+# 3. Run the extraction on your input text
+input_text = (
+    "Lady Juliet gazed longingly at the stars, her heart aching for Romeo"
+)
+result = lx.extract(
+    text_or_documents=input_text,
+    prompt_description=prompt,
+    examples=examples,
+    model_id="gemini-2.5-pro",
+)
+Python
+
+The result object contains the extracted entities, which can be saved to a JSONL file. From there, you can generate an interactive HTML file to view the annotations. This visualization is great for demos or evaluating the extraction quality, saving valuable time. It works seamlessly in environments like Google Colab or can be saved as a standalone HTML file, viewable from your browser.
+
+# Save the results to a JSONL file
+lx.io.save_annotated_documents([result], output_name="extraction_results.jsonl")
+
+# Generate the interactive visualization from the file
+html_content = lx.visualize("extraction_results.jsonl")
+with open("visualization.html", "w") as f:
+    f.write(html_content)
+Python
+
+LangExtract visualizing extracted entities from the Shakespeare text. To see an example processing the entire novel, see our full-text analysis of Romeo and Juliet.
+Flexibility for specialized domains
+The same principles above apply to specialized domains like medicine, finance, engineering or law. The ideas behind LangExtract were first applied to medical information extraction and can be effective at processing clinical text. For example, it can identify medications, dosages, and other medication attributes, and then map the relationships between them. This capability was a core part of the research that led to this library, which you can read about in our paper on accelerating medical information extraction.
+
+The animation below shows LangExtract processing clinical text to extract medication-related entities and groups them to the source medication.
+
+LangExtract processing clinical text to extract medications and their relationships. See the full medication extraction example to learn more.
+Demo on structured radiology reporting
+To showcase LangExtract's power in a specialized field, we developed an interactive demonstration for structured radiology reporting called RadExtract on Hugging Face. This demo shows how LangExtract can process a free-text radiology report and automatically convert its key findings into a structured format, also highlighting important findings. This approach is important in radiology, where structuring reports enhances clarity, ensures completeness, and improves data interoperability for research and clinical care.
+
+Try the demo on HuggingFace: https://google-radextract.hf.space
+Disclaimer: The medication extraction example and structured reporting demo above are for illustrative purposes of LangExtract's baseline capability only. It does not represent a finished or approved product, is not intended to diagnose or suggest treatment of any disease or condition, and should not be used for medical advice.
+
+
+Get started with LangExtract: Resources and next steps
+We're excited to see the innovative ways developers will use LangExtract to unlock insights from text. Dive into the documentation, explore the examples on our GitHub repository, and start transforming your unstructured data today.
+
+posted in:
+Gemini
+AI
+Announcements
+Python
+Gemini API
+Large Language Model
+Natural Language Processing
+Information Extraction
+Previous
+Next
+Related Posts
+
+Introducing Gemini 2.5 Flash Image, our state-of-the-art image model
+Gemini
+Google AI Studio
+AI
+Announcements
+Introducing Gemini 2.5 Flash Image, our state-of-the-art image model
+
+AUG. 26, 2025
+Beyond the terminal: Gemini CLI comes to Zed
+Gemini
+AI
+Announcements
+Beyond the terminal: Gemini CLI comes to Zed
+
+AUG. 27, 2025
+Stop “vibe testing” your LLMs. It's time for real evals.
+Google Labs
+AI
+Announcements
+Best Practices
+Stop “vibe testing” your LLMs. It's time for real evals.
+
+AUG. 27, 2025
+How to prompt Gemini 2.5 Flash Image Generation for the best results
+AI
+Best Practices
+How to prompt Gemini 2.5 Flash Image Generation for the best results
+
+AUG. 28, 2025
+
+Connect
+Blog
+Bluesky
+Instagram
+LinkedIn
+X (Twitter)
+YouTube
+Programs
+Google Developer Program
+Google Developer Groups
+Google Developer Experts
+Accelerators
+Women Techmakers
+Google Cloud & NVIDIA
+Developer consoles
+Google API Console
+Google Cloud Platform Console
+Google Play Console
+Firebase Console
+Actions on Google Console
+Cast SDK Developer Console
+Chrome Web Store Dashboard
+Google Home Developer Console
+Google for Developers
+Android
+Chrome
+Firebase
+Google Cloud Platform
+All products
+Terms
+Privacy
+
+English

@@ -32,6 +32,7 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
   const [urlInput, setUrlInput] = useState("");
   const [useExamples, setUseExamples] = useState(false);
   const [isGeneratingExamples, setIsGeneratingExamples] = useState(false);
+  const [generatingExampleIndex, setGeneratingExampleIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -257,6 +258,61 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
       });
     } finally {
       setIsGeneratingExamples(false);
+    }
+  };
+
+  const generateSingleExample = async (index: number) => {
+    const promptDescription = form.getValues("promptDescription");
+    if (!promptDescription.trim()) {
+      toast({
+        title: "Prompt Required",
+        description: "Please enter a prompt description before generating examples.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setGeneratingExampleIndex(index);
+    try {
+      const response = await fetch("/api/generate-examples", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          promptDescription,
+          count: 1
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to generate example");
+      }
+
+      const result = await response.json();
+      
+      if (result.examples && result.examples.length > 0) {
+        // Replace the example at the specific index
+        const currentExamples = form.getValues("examples");
+        const updatedExamples = [...currentExamples];
+        updatedExamples[index] = result.examples[0];
+        form.setValue("examples", updatedExamples);
+
+        toast({
+          title: "Example Generated!",
+          description: "Successfully generated a new example using AI.",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to generate example:", error);
+      toast({
+        title: "Generation Failed",
+        description: error instanceof Error ? error.message : "Failed to generate example. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingExampleIndex(null);
     }
   };
 
@@ -626,6 +682,42 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
 
                   {useExamples && form.watch("examples").map((_, index) => (
                     <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50 space-y-3">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-medium text-gray-700">Example {index + 1}</h4>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => generateSingleExample(index)}
+                            disabled={generatingExampleIndex === index}
+                            className="text-purple-600 hover:text-purple-700 border-purple-200 hover:border-purple-300"
+                          >
+                            {generatingExampleIndex === index ? (
+                              <>
+                                <div className="w-3 h-3 mr-1 animate-spin rounded-full border border-purple-300 border-t-purple-600"></div>
+                                Generating...
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                </svg>
+                                Generate AI
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeExample(index)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
                       <FormField
                         control={form.control}
                         name={`examples.${index}.text`}
