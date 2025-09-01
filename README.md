@@ -41,16 +41,7 @@ A web application that provides a user-friendly interface for LangExtract, a Pyt
 ## AI Models
 
 - Google Gemini 2.5 Flash
-- Google Gemini 1.5 Pro
-- OpenAI GPT-4o
-- OpenAI GPT-4o Mini
+- Google Gemini 2.5 Pro
 
 ## Environment Variables
 
-To run this application, you may need to set the following environment variables:
-
-- `GOOGLE_API_KEY`: Your Google AI API key for Gemini models
-- `OPENAI_API_KEY`: Your OpenAI API key
-- `FIRECRAWL_API_KEY`: Your FireCrawl API key for web scraping
-
-*Note: The application will work with available APIs and gracefully handle missing credentials.*
