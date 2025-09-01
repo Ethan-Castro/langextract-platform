@@ -25,158 +25,422 @@ try {
   console.warn("Gemini service not available:", error);
 }
 
-// Helper function to generate simple HTML-based PDF content using a lightweight approach
+// Helper function to generate enhanced PDF content with professional design
 async function generatePDFContent(job: any, extractions: ExtractionResult[], metadata: any): Promise<Buffer> {
-  console.log("Generating PDF content using simple HTML approach...");
+  console.log("Generating enhanced PDF content with professional design...");
   
-  // Create formatted HTML content that can be converted to PDF
+  // Calculate statistics
+  const entityTypeCounts = extractions.reduce((acc, ext) => {
+    acc[ext.extraction_class] = (acc[ext.extraction_class] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  const avgConfidence = extractions.length > 0 
+    ? extractions.filter(e => e.confidence).reduce((sum, e) => sum + (e.confidence || 0), 0) / extractions.filter(e => e.confidence).length
+    : 0;
+  
+  const uniqueEntityTypes = Object.keys(entityTypeCounts);
+  const textLength = job.inputText.length;
+  
+  // Create enhanced HTML content with professional styling
   const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>LangExtract Results - ${job.id}</title>
+    <title>LangExtract Results Report - ${job.id}</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.7;
+            color: #1f2937;
+            background: #ffffff;
+            font-size: 14px;
+        }
+        
+        .container {
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 20mm;
+        }
+        
         .header {
             text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #a855f7;
-            padding-bottom: 20px;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }
+        
         .header h1 {
-            color: #a855f7;
-            margin: 0;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
         }
-        .info-section {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
+        
+        .header .subtitle {
+            font-size: 16px;
+            font-weight: 300;
+            opacity: 0.9;
+        }
+        
+        .header .timestamp {
+            font-size: 13px;
+            margin-top: 15px;
+            opacity: 0.8;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .card-header {
             margin-bottom: 20px;
         }
-        .stats {
-            display: flex;
-            justify-content: space-around;
-            margin: 20px 0;
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 5px;
+        }
+        
+        .card-subtitle {
+            font-size: 13px;
+            color: #6b7280;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
             text-align: center;
         }
-        .stat {
-            flex: 1;
-            padding: 10px;
-        }
+        
         .stat-number {
-            font-size: 24px;
-            font-weight: bold;
+            font-size: 28px;
+            font-weight: 700;
             color: #3b82f6;
+            margin-bottom: 5px;
         }
-        .extraction {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 15px 0;
-            background: #fff;
-        }
-        .extraction-type {
-            background: #a855f7;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 15px;
+        
+        .stat-label {
             font-size: 12px;
-            display: inline-block;
-            margin-bottom: 8px;
+            color: #64748b;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        .extraction-text {
-            font-weight: bold;
-            background: #fef3c7;
-            padding: 8px;
-            border-radius: 4px;
+        
+        .entity-types {
+            margin-bottom: 25px;
+        }
+        
+        .entity-type-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
             margin: 8px 0;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
         }
+        
+        .entity-type-name {
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .entity-type-count {
+            background: #3b82f6;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .extraction {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            background: #ffffff;
+            transition: all 0.2s ease;
+        }
+        
+        .extraction:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .extraction-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .extraction-type {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .confidence-badge {
+            background: #10b981;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .extraction-text {
+            font-weight: 600;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin: 12px 0;
+            border-left: 4px solid #f59e0b;
+            font-size: 15px;
+        }
+        
         .attributes {
             background: #f1f5f9;
-            padding: 10px;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-        .source-text {
-            background: #f8f9fa;
-            border: 1px solid #ddd;
             padding: 15px;
             border-radius: 8px;
-            font-family: monospace;
-            white-space: pre-wrap;
+            font-size: 13px;
+            border: 1px solid #e2e8f0;
         }
+        
+        .attribute-item {
+            display: flex;
+            margin: 5px 0;
+        }
+        
+        .attribute-key {
+            font-weight: 600;
+            color: #374151;
+            margin-right: 8px;
+            min-width: 80px;
+        }
+        
+        .attribute-value {
+            color: #6b7280;
+        }
+        
+        .source-text {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
         .section-title {
-            font-size: 20px;
-            font-weight: bold;
-            color: #1f2937;
-            margin: 25px 0 15px 0;
-            border-bottom: 1px solid #e5e7eb;
-            padding-bottom: 5px;
+            font-size: 22px;
+            font-weight: 700;
+            color: #111827;
+            margin: 35px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e5e7eb;
+            position: relative;
+        }
+        
+        .section-title::before {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 60px;
+            height: 2px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            color: #6b7280;
+            font-size: 12px;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 20px;
+        }
+        
+        .footer-logo {
+            font-weight: 700;
+            color: #374151;
+            margin-bottom: 5px;
+        }
+        
+        .page-break {
+            page-break-before: always;
+        }
+        
+        @media print {
+            body { background: white !important; }
+            .container { padding: 15mm; }
+            .card { box-shadow: none; }
+            .extraction:hover { box-shadow: none; }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🧠 LangExtract Results</h1>
-        <p>Extraction Report Generated on ${new Date().toLocaleString()}</p>
-    </div>
-
-    <div class="info-section">
-        <h3>Job Information</h3>
-        <p><strong>ID:</strong> ${job.id}</p>
-        <p><strong>Model:</strong> ${job.modelId}</p>
-        <p><strong>Status:</strong> ${job.status}</p>
-        <p><strong>Created:</strong> ${new Date(job.createdAt).toLocaleString()}</p>
-    </div>
-
-    <div class="stats">
-        <div class="stat">
-            <div class="stat-number">${extractions.length}</div>
-            <div>Total Extractions</div>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 LangExtract Results Report</h1>
+            <div class="subtitle">AI-Powered Structured Data Extraction Analysis</div>
+            <div class="timestamp">Generated on ${new Date().toLocaleDateString('en-US', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}</div>
         </div>
-        <div class="stat">
-            <div class="stat-number">${new Set(extractions.map(e => e.extraction_class)).size}</div>
-            <div>Entity Types</div>
-        </div>
-        <div class="stat">
-            <div class="stat-number">${metadata.processingTime ? (metadata.processingTime / 1000).toFixed(1) + 's' : 'N/A'}</div>
-            <div>Processing Time</div>
-        </div>
-    </div>
 
-    <h2 class="section-title">Prompt Description</h2>
-    <div class="info-section">
-        ${job.promptDescription}
-    </div>
-
-    <h2 class="section-title">Extracted Entities (${extractions.length})</h2>
-    ${extractions.map(extraction => `
-        <div class="extraction">
-            <span class="extraction-type">${extraction.extraction_class}</span>
-            <div class="extraction-text">${extraction.extraction_text}</div>
-            ${extraction.attributes && Object.keys(extraction.attributes).length > 0 ? `
-                <div class="attributes">
-                    <strong>Attributes:</strong> ${Object.entries(extraction.attributes).map(([key, value]) => `${key}: "${value}"`).join(', ')}
+        <div class="grid">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Job Information</div>
+                    <div class="card-subtitle">Extraction job details and configuration</div>
                 </div>
-            ` : ''}
-            ${extraction.confidence ? `<p><small>Confidence: ${(extraction.confidence * 100).toFixed(0)}%</small></p>` : ''}
+                <div style="space-y: 10px;">
+                    <div style="margin-bottom: 8px;"><strong>Job ID:</strong> ${job.id}</div>
+                    <div style="margin-bottom: 8px;"><strong>Model:</strong> ${job.modelId}</div>
+                    <div style="margin-bottom: 8px;"><strong>Status:</strong> <span style="color: #10b981; font-weight: 600;">${job.status.toUpperCase()}</span></div>
+                    <div style="margin-bottom: 8px;"><strong>Created:</strong> ${new Date(job.createdAt).toLocaleString()}</div>
+                    ${job.completedAt ? `<div><strong>Completed:</strong> ${new Date(job.completedAt).toLocaleString()}</div>` : ''}
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Processing Summary</div>
+                    <div class="card-subtitle">Key metrics and performance data</div>
+                </div>
+                <div style="space-y: 10px;">
+                    <div style="margin-bottom: 8px;"><strong>Text Length:</strong> ${textLength.toLocaleString()} characters</div>
+                    <div style="margin-bottom: 8px;"><strong>Processing Time:</strong> ${metadata.processingTime ? (metadata.processingTime / 1000).toFixed(2) + 's' : 'N/A'}</div>
+                    <div style="margin-bottom: 8px;"><strong>Average Confidence:</strong> ${avgConfidence > 0 ? (avgConfidence * 100).toFixed(1) + '%' : 'N/A'}</div>
+                    <div><strong>Extraction Rate:</strong> ${textLength > 0 ? (extractions.length / textLength * 1000).toFixed(2) : '0'} entities/1k chars</div>
+                </div>
+            </div>
         </div>
-    `).join('')}
 
-    <h2 class="section-title">Source Text</h2>
-    <div class="source-text">${job.inputText.length > 2000 ? job.inputText.substring(0, 2000) + '...\n\n[Text truncated for PDF export]' : job.inputText}</div>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">${extractions.length}</div>
+                <div class="stat-label">Total Extractions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${uniqueEntityTypes.length}</div>
+                <div class="stat-label">Entity Types</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${extractions.filter(e => e.attributes && Object.keys(e.attributes).length > 0).length}</div>
+                <div class="stat-label">With Attributes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${extractions.filter(e => e.confidence && e.confidence > 0.8).length}</div>
+                <div class="stat-label">High Confidence</div>
+            </div>
+        </div>
 
-    <div style="margin-top: 40px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #ddd; padding-top: 20px;">
-        <p>Generated by LangExtract Platform • ${new Date().getFullYear()}</p>
-        <p>AI-powered structured data extraction</p>
+        <h2 class="section-title">Prompt Description</h2>
+        <div class="card">
+            <div style="font-size: 15px; line-height: 1.7; color: #374151;">${job.promptDescription}</div>
+        </div>
+
+        <h2 class="section-title">Entity Type Breakdown</h2>
+        <div class="entity-types">
+            ${Object.entries(entityTypeCounts)
+              .sort(([,a], [,b]) => b - a)
+              .map(([type, count]) => `
+                <div class="entity-type-item">
+                    <span class="entity-type-name">${type}</span>
+                    <span class="entity-type-count">${count}</span>
+                </div>
+            `).join('')}
+        </div>
+
+        <div class="page-break"></div>
+        
+        <h2 class="section-title">Extracted Entities (${extractions.length})</h2>
+        ${extractions.map((extraction, index) => `
+            <div class="extraction">
+                <div class="extraction-header">
+                    <span class="extraction-type">${extraction.extraction_class}</span>
+                    ${extraction.confidence ? `<span class="confidence-badge">${(extraction.confidence * 100).toFixed(0)}%</span>` : ''}
+                </div>
+                <div class="extraction-text">${extraction.extraction_text}</div>
+                ${extraction.attributes && Object.keys(extraction.attributes).length > 0 ? `
+                    <div class="attributes">
+                        <div style="font-weight: 600; margin-bottom: 8px; color: #374151;">Attributes:</div>
+                        ${Object.entries(extraction.attributes).map(([key, value]) => `
+                            <div class="attribute-item">
+                                <span class="attribute-key">${key}:</span>
+                                <span class="attribute-value">${value}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+            </div>
+        `).join('')}
+
+        <div class="page-break"></div>
+        
+        <h2 class="section-title">Source Text</h2>
+        <div class="source-text">${job.inputText.length > 3000 ? 
+          job.inputText.substring(0, 3000) + '\n\n[Text truncated for PDF export - showing first 3000 characters]' : 
+          job.inputText
+        }</div>
+
+        <div class="footer">
+            <div class="footer-logo">LangExtract Platform</div>
+            <div>AI-powered structured data extraction • ${new Date().getFullYear()}</div>
+            <div style="margin-top: 5px; font-size: 11px;">Report generated with advanced natural language processing</div>
+        </div>
     </div>
 </body>
 </html>`;

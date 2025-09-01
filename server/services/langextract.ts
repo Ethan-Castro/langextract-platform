@@ -254,7 +254,20 @@ if __name__ == "__main__":
   }
 
   async generateVisualization(jobId: string, extractions: ExtractionResult[], originalText: string): Promise<string> {
-    // Generate interactive HTML visualization
+    // Calculate statistics for enhanced visualization
+    const entityTypeCounts = extractions.reduce((acc, ext) => {
+      acc[ext.extraction_class] = (acc[ext.extraction_class] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const avgConfidence = extractions.length > 0 
+      ? extractions.filter(e => e.confidence).reduce((sum, e) => sum + (e.confidence || 0), 0) / extractions.filter(e => e.confidence).length
+      : 0;
+    
+    const uniqueEntityTypes = Object.keys(entityTypeCounts);
+    const highConfidenceEntities = extractions.filter(e => e.confidence && e.confidence > 0.8).length;
+    
+    // Generate enhanced interactive HTML visualization
     const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -263,61 +276,417 @@ if __name__ == "__main__":
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LangExtract Results - Job ${jobId}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        .highlight { background: linear-gradient(120deg, #fef3c7 0%, #fcd34d 100%); padding: 2px 4px; border-radius: 4px; border-left: 3px solid #f59e0b; }
-        .highlight:hover { transform: scale(1.05); transition: transform 0.2s; }
+        body { font-family: 'Inter', sans-serif; }
+        
+        .highlight { 
+            background: linear-gradient(120deg, #fef3c7 0%, #fcd34d 100%); 
+            padding: 3px 6px; 
+            border-radius: 6px; 
+            border-left: 3px solid #f59e0b; 
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .highlight:hover { 
+            transform: translateY(-1px) scale(1.02); 
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+            background: linear-gradient(120deg, #fde68a 0%, #f59e0b 100%);
+            color: white;
+        }
+        
+        .highlight.active {
+            background: linear-gradient(120deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            border-left-color: #1d4ed8;
+        }
+        
+        .entity-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .entity-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .entity-card.active {
+            border-color: #3b82f6;
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+        }
+        
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .slide-in { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: scale(1.05);
+        }
+        
+        .search-highlight {
+            background: linear-gradient(120deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        
+        .filter-button {
+            transition: all 0.2s ease;
+        }
+        
+        .filter-button.active {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            transform: scale(1.05);
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .confidence-bar {
+            height: 4px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #10b981 100%);
+        }
     </style>
 </head>
-<body class="bg-gray-50 p-8">
-    <div class="max-w-6xl mx-auto">
-        <header class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">LangExtract Results</h1>
-            <p class="text-gray-600">Interactive visualization of extracted entities</p>
+<body class="bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 min-h-screen" x-data="extractionApp()">
+    <div class="max-w-7xl mx-auto p-6">
+        <!-- Header -->
+        <header class="mb-8 text-center fade-in">
+            <div class="bg-white rounded-2xl shadow-lg p-8 border border-gray-200">
+                <h1 class="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
+                    🧠 LangExtract Results
+                </h1>
+                <p class="text-gray-600 text-lg">Interactive visualization of extracted entities</p>
+                <div class="mt-4 text-sm text-gray-500">Job ID: ${jobId}</div>
+            </div>
         </header>
-        
-        <div class="grid lg:grid-cols-2 gap-8">
-            <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-xl font-semibold mb-4">Source Text</h2>
-                <div class="bg-gray-50 rounded p-4 font-mono text-sm leading-relaxed" id="sourceText">
-                    ${this.highlightText(originalText, extractions)}
+
+        <!-- Statistics Dashboard -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 fade-in">
+            <div class="stat-card text-white rounded-xl p-6 text-center">
+                <div class="text-3xl font-bold">${extractions.length}</div>
+                <div class="text-sm opacity-90">Total Extractions</div>
+            </div>
+            <div class="stat-card text-white rounded-xl p-6 text-center">
+                <div class="text-3xl font-bold">${uniqueEntityTypes.length}</div>
+                <div class="text-sm opacity-90">Entity Types</div>
+            </div>
+            <div class="stat-card text-white rounded-xl p-6 text-center">
+                <div class="text-3xl font-bold">${highConfidenceEntities}</div>
+                <div class="text-sm opacity-90">High Confidence</div>
+            </div>
+            <div class="stat-card text-white rounded-xl p-6 text-center">
+                <div class="text-3xl font-bold">${avgConfidence > 0 ? (avgConfidence * 100).toFixed(0) + '%' : 'N/A'}</div>
+                <div class="text-sm opacity-90">Avg Confidence</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8 slide-in">
+            <div class="flex flex-wrap gap-4 items-center justify-between">
+                <div class="flex flex-wrap gap-2">
+                    <button class="filter-button px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium hover:bg-gray-50"
+                            :class="{ 'active': activeFilter === 'all' }"
+                            @click="setFilter('all')">
+                        All Entities (${extractions.length})
+                    </button>
+                    ${uniqueEntityTypes.map(type => `
+                        <button class="filter-button px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium hover:bg-gray-50"
+                                :class="{ 'active': activeFilter === '${type}' }"
+                                @click="setFilter('${type}')">
+                            ${type} (${entityTypeCounts[type]})
+                        </button>
+                    `).join('')}
+                </div>
+                <div class="flex gap-4 items-center">
+                    <input type="text" 
+                           placeholder="Search entities..." 
+                           class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           x-model="searchTerm"
+                           @input="performSearch">
+                    <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            @click="clearHighlights">
+                        Clear Highlights
+                    </button>
                 </div>
             </div>
-            
-            <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-xl font-semibold mb-4">Extracted Entities</h2>
-                <div class="space-y-4" id="entitiesList">
-                    ${extractions.map((ext, index) => `
-                        <div class="border rounded p-3 hover:bg-gray-50" data-entity="${index}">
-                            <div class="flex items-center space-x-2 mb-2">
-                                <span class="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
-                                    ${ext.extraction_class}
-                                </span>
-                            </div>
-                            <div class="font-medium text-gray-900 mb-1">${ext.extraction_text}</div>
-                            <div class="text-sm text-gray-600">
-                                ${ext.attributes && Object.keys(ext.attributes).length > 0 ? 
-                                    Object.entries(ext.attributes).map(([key, value]) => 
-                                        `<strong>${key}:</strong> ${value}`
-                                    ).join(', ') : 'No additional attributes'
-                                }
-                            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid lg:grid-cols-3 gap-8">
+            <!-- Source Text Panel -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div class="p-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                        <h2 class="text-xl font-semibold mb-2">📄 Source Text with Highlights</h2>
+                        <p class="text-blue-100 text-sm">Click on highlighted text to see entity details</p>
+                    </div>
+                    <div class="p-6">
+                        <div class="bg-gray-50 rounded-xl p-6 font-mono text-sm leading-relaxed max-h-96 overflow-y-auto border" 
+                             id="sourceText">
+                            ${this.highlightText(originalText, extractions)}
                         </div>
-                    `).join('')}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Entities and Charts Panel -->
+            <div class="space-y-6">
+                <!-- Entity Distribution Chart -->
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-semibold mb-4">📊 Entity Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="entityChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Extracted Entities List -->
+                <div class="bg-white rounded-xl shadow-lg">
+                    <div class="p-6 bg-gradient-to-r from-green-600 to-blue-600 text-white">
+                        <h2 class="text-xl font-semibold">🎯 Extracted Entities</h2>
+                        <div class="text-green-100 text-sm mt-1" x-text="filteredEntities.length + ' entities shown'"></div>
+                    </div>
+                    <div class="p-6 max-h-96 overflow-y-auto">
+                        <div class="space-y-3" id="entitiesList">
+                            <template x-for="(entity, index) in filteredEntities" :key="index">
+                                <div class="entity-card border rounded-xl p-4 hover:bg-gray-50 transition-all duration-300"
+                                     :class="{ 'active': selectedEntity === index }"
+                                     :data-entity="index"
+                                     @click="selectEntity(index)"
+                                     @mouseenter="highlightEntity(index)"
+                                     @mouseleave="unhighlightEntity(index)">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <span class="px-3 py-1 text-xs font-semibold rounded-full"
+                                              :class="getEntityTypeColor(entity.extraction_class)"
+                                              x-text="entity.extraction_class"></span>
+                                        <div class="flex items-center space-x-2" x-show="entity.confidence">
+                                            <span class="text-xs text-gray-500">Confidence:</span>
+                                            <span class="text-xs font-medium" x-text="Math.round(entity.confidence * 100) + '%'"></span>
+                                            <div class="w-12 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                <div class="confidence-bar h-full transition-all duration-500"
+                                                     :style="'width: ' + (entity.confidence * 100) + '%'"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="font-medium text-gray-900 mb-2" x-text="entity.extraction_text"></div>
+                                    <div class="text-sm text-gray-600" x-show="entity.attributes && Object.keys(entity.attributes).length > 0">
+                                        <template x-for="[key, value] in Object.entries(entity.attributes || {})" :key="key">
+                                            <div class="inline-block mr-3 mb-1">
+                                                <span class="font-medium" x-text="key + ':'"></span>
+                                                <span x-text="value"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <div class="text-xs text-gray-400 mt-2" x-show="!entity.attributes || Object.keys(entity.attributes).length === 0">
+                                        No additional attributes
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    
+
+    <!-- Tooltip -->
+    <div id="tooltip" class="tooltip"></div>
+
     <script>
-        // Interactive highlighting
-        document.querySelectorAll('[data-entity]').forEach((el, index) => {
-            el.addEventListener('mouseenter', () => {
-                document.querySelectorAll('.highlight')[index]?.classList.add('bg-yellow-300');
-            });
-            el.addEventListener('mouseleave', () => {
-                document.querySelectorAll('.highlight')[index]?.classList.remove('bg-yellow-300');
-            });
-        });
+        const extractionsData = ${JSON.stringify(extractions)};
+        const entityTypeCounts = ${JSON.stringify(entityTypeCounts)};
+        
+        function extractionApp() {
+            return {
+                entities: extractionsData,
+                filteredEntities: extractionsData,
+                activeFilter: 'all',
+                selectedEntity: null,
+                searchTerm: '',
+                
+                init() {
+                    this.createChart();
+                    this.setupTooltips();
+                },
+                
+                setFilter(type) {
+                    this.activeFilter = type;
+                    if (type === 'all') {
+                        this.filteredEntities = this.entities;
+                    } else {
+                        this.filteredEntities = this.entities.filter(e => e.extraction_class === type);
+                    }
+                    this.selectedEntity = null;
+                },
+                
+                performSearch() {
+                    if (!this.searchTerm) {
+                        this.setFilter(this.activeFilter);
+                        this.clearSearchHighlights();
+                        return;
+                    }
+                    
+                    const term = this.searchTerm.toLowerCase();
+                    this.filteredEntities = this.entities.filter(e => 
+                        e.extraction_text.toLowerCase().includes(term) ||
+                        e.extraction_class.toLowerCase().includes(term) ||
+                        (e.attributes && JSON.stringify(e.attributes).toLowerCase().includes(term))
+                    );
+                    
+                    this.highlightSearchResults(term);
+                },
+                
+                selectEntity(index) {
+                    this.selectedEntity = index;
+                    const entity = this.filteredEntities[index];
+                    this.highlightTextInSource(entity.extraction_text);
+                },
+                
+                highlightEntity(index) {
+                    const highlights = document.querySelectorAll('.highlight');
+                    highlights[index]?.classList.add('active');
+                },
+                
+                unhighlightEntity(index) {
+                    const highlights = document.querySelectorAll('.highlight');
+                    highlights[index]?.classList.remove('active');
+                },
+                
+                clearHighlights() {
+                    document.querySelectorAll('.highlight').forEach(el => {
+                        el.classList.remove('active', 'search-highlight');
+                    });
+                    this.selectedEntity = null;
+                },
+                
+                clearSearchHighlights() {
+                    document.querySelectorAll('.search-highlight').forEach(el => {
+                        el.classList.remove('search-highlight');
+                    });
+                },
+                
+                highlightSearchResults(term) {
+                    this.clearSearchHighlights();
+                    const sourceText = document.getElementById('sourceText');
+                    const highlights = sourceText.querySelectorAll('.highlight');
+                    
+                    highlights.forEach(highlight => {
+                        if (highlight.textContent.toLowerCase().includes(term)) {
+                            highlight.classList.add('search-highlight');
+                        }
+                    });
+                },
+                
+                highlightTextInSource(text) {
+                    this.clearHighlights();
+                    const highlights = document.querySelectorAll('.highlight');
+                    highlights.forEach(highlight => {
+                        if (highlight.textContent === text) {
+                            highlight.classList.add('active');
+                            highlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    });
+                },
+                
+                getEntityTypeColor(type) {
+                    const colors = {
+                        'person': 'bg-blue-100 text-blue-800',
+                        'location': 'bg-green-100 text-green-800',
+                        'organization': 'bg-purple-100 text-purple-800',
+                        'date': 'bg-yellow-100 text-yellow-800',
+                        'money': 'bg-red-100 text-red-800',
+                        'product': 'bg-indigo-100 text-indigo-800'
+                    };
+                    return colors[type.toLowerCase()] || 'bg-gray-100 text-gray-800';
+                },
+                
+                createChart() {
+                    const ctx = document.getElementById('entityChart').getContext('2d');
+                    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'];
+                    
+                    new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: Object.keys(entityTypeCounts),
+                            datasets: [{
+                                data: Object.values(entityTypeCounts),
+                                backgroundColor: colors.slice(0, Object.keys(entityTypeCounts).length),
+                                borderWidth: 2,
+                                borderColor: '#ffffff'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        usePointStyle: true,
+                                        padding: 15
+                                    }
+                                }
+                            },
+                            animation: {
+                                animateScale: true,
+                                animateRotate: true
+                            }
+                        }
+                    });
+                },
+                
+                setupTooltips() {
+                    const tooltip = document.getElementById('tooltip');
+                    
+                    document.querySelectorAll('.highlight').forEach((el, index) => {
+                        el.addEventListener('mouseenter', (e) => {
+                            const entity = extractionsData[index];
+                            if (entity) {
+                                tooltip.innerHTML = \`
+                                    <div class="font-semibold">\${entity.extraction_class}</div>
+                                    <div class="text-xs mt-1">\${entity.extraction_text}</div>
+                                    \${entity.confidence ? \`<div class="text-xs mt-1">Confidence: \${Math.round(entity.confidence * 100)}%</div>\` : ''}
+                                \`;
+                                tooltip.style.left = e.pageX + 10 + 'px';
+                                tooltip.style.top = e.pageY - 10 + 'px';
+                                tooltip.style.opacity = '1';
+                            }
+                        });
+                        
+                        el.addEventListener('mouseleave', () => {
+                            tooltip.style.opacity = '0';
+                        });
+                    });
+                }
+            }
+        }
     </script>
 </body>
 </html>`;
