@@ -500,9 +500,6 @@ export function ExtractionForm({ onJobCreated }: ExtractionFormProps) {
                         <SelectContent>
                           <SelectItem value="gemini-2.5-flash">gemini-2.5-flash (Recommended)</SelectItem>
                           <SelectItem value="gemini-2.5-pro">gemini-2.5-pro</SelectItem>
-                          <SelectItem value="gpt-4o">gpt-4o</SelectItem>
-                          <SelectItem value="gpt-4o-mini">gpt-4o-mini</SelectItem>
-                          <SelectItem value="gemma2:2b">gemma2:2b (Local)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
